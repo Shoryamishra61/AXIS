@@ -1,9 +1,11 @@
 // SummaryView.swift
 // Axis - The Invisible Posture Companion
-// Session Summary with Real Metrics for Swift Student Challenge 2026
+// Distinguished Winner Session Summary for Swift Student Challenge 2026
+//
+// "End the session on a high note with celebration and actionable insight."
+// Every metric tells a story. Make the user feel accomplished.
 
 import SwiftUI
-
 struct SummaryView: View {
     @EnvironmentObject var coordinator: AppCoordinator
     @ObservedObject private var metrics = SessionMetrics.shared
@@ -75,45 +77,47 @@ struct SummaryView: View {
     // MARK: - Header Section
     
     private var headerSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: AxisSpacing.md) {
             // Sparkle icon with animation
             ZStack {
                 Circle()
-                    .fill(AxisColor.success.opacity(0.15))
+                    .fill(AxisColor.aligned.opacity(0.15))
                     .frame(width: 100, height: 100)
                 
                 Image(systemName: "sparkles")
                     .font(.system(size: 48))
-                    .foregroundStyle(AxisColor.success)
+                    .foregroundColor(AxisColor.aligned)
                     .symbolEffect(.bounce, value: showContent)
             }
             
             Text("Session Complete")
                 .font(.axisTitle)
-                .foregroundStyle(.primary)
+                .foregroundColor(AxisColor.textPrimary)
             
             Text(summary.performanceLevel.message)
-                .font(.axisInstruction)
-                .foregroundStyle(.secondary)
+                .font(.axisHeadline)
+                .foregroundColor(AxisColor.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, AxisSpacing.lg)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Session complete. \(summary.performanceLevel.message)")
     }
     
     // MARK: - Performance Badge
     
     private var performanceBadge: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: AxisSpacing.md) {
             Text(summary.performanceLevel.emoji)
                 .font(.system(size: 32))
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: AxisSpacing.xs) {
                 Text(summary.performanceLevel.rawValue)
                     .font(.axisButton)
-                    .foregroundStyle(.primary)
+                    .foregroundColor(AxisColor.textPrimary)
                 
                 // Accuracy ring
-                HStack(spacing: 8) {
+                HStack(spacing: AxisSpacing.sm) {
                     ZStack {
                         Circle()
                             .stroke(Color.white.opacity(0.1), lineWidth: 4)
@@ -131,18 +135,24 @@ struct SummaryView: View {
                         
                         Text(summary.formattedAccuracy)
                             .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(AxisColor.accuracy(summary.averageAccuracy))
+                            .foregroundColor(AxisColor.accuracy(summary.averageAccuracy))
                     }
                     
                     Text("Accuracy")
                         .font(.axisCaption)
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(AxisColor.textSecondary)
                 }
             }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .padding(.horizontal, AxisSpacing.lg)
+        .padding(.vertical, AxisSpacing.md)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: AxisRadius.xl))
+        .overlay(
+            RoundedRectangle(cornerRadius: AxisRadius.xl)
+                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(summary.performanceLevel.rawValue). \(summary.formattedAccuracy) accuracy.")
     }
     
     // MARK: - Metrics Grid

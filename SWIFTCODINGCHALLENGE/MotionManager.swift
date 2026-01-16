@@ -52,28 +52,46 @@ class MotionManager: ObservableObject {
         }
     }
     
+    // MARK: - Connection Monitoring
+    private var connectionMonitorTimer: Timer?
+    private var wasHeadphoneAvailable: Bool = false
+    
     // MARK: - Initialization
     private init() {
-        setupNotifications()
+        wasHeadphoneAvailable = headphoneManager.isDeviceMotionAvailable
     }
     
-    private func setupNotifications() {
-        // Monitor for AirPods connection changes
-        NotificationCenter.default.addObserver(
-            forName: .CMHeadphoneMotionManagerDidConnect,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.handleHeadphoneConnect()
+    /// Start monitoring for sensor availability changes (call on app appear)
+    func startConnectionMonitoring() {
+        // Check immediately
+        checkSensorAvailability()
+        
+        // Then poll every 2 seconds for connection changes
+        connectionMonitorTimer?.invalidate()
+        connectionMonitorTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.checkSensorAvailability()
+        }
+    }
+    
+    /// Stop connection monitoring (call on app disappear)
+    func stopConnectionMonitoring() {
+        connectionMonitorTimer?.invalidate()
+        connectionMonitorTimer = nil
+    }
+    
+    private func checkSensorAvailability() {
+        let isHeadphoneNowAvailable = headphoneManager.isDeviceMotionAvailable
+        
+        // Detect connection change
+        if isHeadphoneNowAvailable && !wasHeadphoneAvailable {
+            // AirPods just connected
+            handleHeadphoneConnect()
+        } else if !isHeadphoneNowAvailable && wasHeadphoneAvailable {
+            // AirPods just disconnected
+            handleHeadphoneDisconnect()
         }
         
-        NotificationCenter.default.addObserver(
-            forName: .CMHeadphoneMotionManagerDidDisconnect,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.handleHeadphoneDisconnect()
-        }
+        wasHeadphoneAvailable = isHeadphoneNowAvailable
     }
     
     // MARK: - Start Updates
@@ -323,6 +341,7 @@ class MotionManager: ObservableObject {
         deviceManager.stopDeviceMotionUpdates()
         updateTimer?.invalidate()
         updateTimer = nil
+        stopConnectionMonitoring()
     }
     
     // MARK: - Debug Info
@@ -338,10 +357,4 @@ class MotionManager: ObservableObject {
         Roll: \(String(format: "%.1f", roll))°
         """
     }
-}
-
-// MARK: - Notification Names
-extension Notification.Name {
-    static let CMHeadphoneMotionManagerDidConnect = Notification.Name("kCMHeadphoneMotionManagerDidConnect")
-    static let CMHeadphoneMotionManagerDidDisconnect = Notification.Name("kCMHeadphoneMotionManagerDidDisconnect")
 }

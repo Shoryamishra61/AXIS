@@ -22,6 +22,8 @@ enum ExerciseCategory: String, CaseIterable, Codable {
     case yogaStretch = "Yoga Stretch"
     case wheelchair = "Wheelchair Adapted"
     case rest = "Rest & Recovery"
+    case acupressure = "Acupressure Points"
+    case neuroReset = "Neuro-Reset"
     
     var icon: String {
         switch self {
@@ -33,6 +35,8 @@ enum ExerciseCategory: String, CaseIterable, Codable {
         case .yogaStretch: return "figure.yoga"
         case .wheelchair: return "figure.roll"
         case .rest: return "leaf.fill"
+        case .acupressure: return "hand.point.up.fill"
+        case .neuroReset: return "brain.head.profile"
         }
     }
     
@@ -46,6 +50,8 @@ enum ExerciseCategory: String, CaseIterable, Codable {
         case .yogaStretch: return "indigo"
         case .wheelchair: return "cyan"
         case .rest: return "gray"
+        case .acupressure: return "pink"
+        case .neuroReset: return "yellow"
         }
     }
 }

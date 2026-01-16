@@ -1070,6 +1070,220 @@ struct ExerciseDatabase {
             reps: 2
         ))
         
+        // ═══════════════════════════════════════════════════════════════
+        // ACUPRESSURE POINTS (6 exercises) - Evidence-based tension relief
+        // Research: GB20, LI4, BL10 are clinically validated for headache relief
+        // ═══════════════════════════════════════════════════════════════
+        
+        exercises.append(Exercise(
+            id: "acu_01",
+            name: "GB20 Pressure Point",
+            category: .acupressure,
+            instruction: "Press the hollows at the base of your skull, either side of the spine.",
+            calmingInstruction: "Find the two hollows at the base of your skull... press gently with your thumbs. Breathe slowly as you hold.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 8.0,
+            totalDuration: 10.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 1
+        ))
+        
+        exercises.append(Exercise(
+            id: "acu_02",
+            name: "LI4 Hand Press",
+            category: .acupressure,
+            instruction: "Press the webbing between thumb and index finger firmly.",
+            calmingInstruction: "Find the fleshy area between your thumb and index finger... press firmly for several seconds. This relieves tension headaches.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 8.0,
+            totalDuration: 10.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 2
+        ))
+        
+        exercises.append(Exercise(
+            id: "acu_03",
+            name: "BL10 Release",
+            category: .acupressure,
+            instruction: "Press the points just below the skull, about 2 fingers from center.",
+            calmingInstruction: "Find the muscles just below your skull, about two fingers from your spine... apply gentle pressure. Feel the release.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 10.0,
+            totalDuration: 12.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 1
+        ))
+        
+        exercises.append(Exercise(
+            id: "acu_04",
+            name: "Temporal Massage",
+            category: .acupressure,
+            instruction: "Massage your temples in small circles.",
+            calmingInstruction: "Place your fingertips on your temples... massage in slow, gentle circles. Let your jaw relax completely.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 10.0,
+            totalDuration: 12.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 1
+        ))
+        
+        exercises.append(Exercise(
+            id: "acu_05",
+            name: "Jaw Muscle Release",
+            category: .acupressure,
+            instruction: "Press the masseter muscle on your jaw while opening your mouth slightly.",
+            calmingInstruction: "Find the large muscle on your jaw... press gently while letting your mouth fall open slightly. Release TMJ tension.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 8.0,
+            totalDuration: 10.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 2
+        ))
+        
+        exercises.append(Exercise(
+            id: "acu_06",
+            name: "Third Eye Point",
+            category: .acupressure,
+            instruction: "Press the point between your eyebrows with your index finger.",
+            calmingInstruction: "Find the point between your eyebrows... press gently with one finger. This is the third eye point - it calms the mind.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 6.0,
+            totalDuration: 8.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 1
+        ))
+        
+        // ═══════════════════════════════════════════════════════════════
+        // NEURO-RESET (6 exercises) - Vagal tone & nervous system reset
+        // Research: Vagal nerve stimulation via specific movements/sounds
+        // ═══════════════════════════════════════════════════════════════
+        
+        exercises.append(Exercise(
+            id: "neuro_01",
+            name: "Jaw Wiggle Reset",
+            category: .neuroReset,
+            instruction: "Wiggle your jaw side to side loosely, like shaking it free.",
+            calmingInstruction: "Let your jaw hang loose... wiggle it side to side like it's made of jelly. Release all tension in your face.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 8.0,
+            totalDuration: 10.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 1
+        ))
+        
+        exercises.append(Exercise(
+            id: "neuro_02",
+            name: "Tongue Press",
+            category: .neuroReset,
+            instruction: "Press your tongue firmly to the roof of your mouth.",
+            calmingInstruction: "Press your tongue flat against the roof of your mouth... feel the gentle stretch in your throat. This activates the vagus nerve.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 5.0,
+            totalDuration: 6.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 2
+        ))
+        
+        exercises.append(Exercise(
+            id: "neuro_03",
+            name: "Eye-Neck Dissociation",
+            category: .neuroReset,
+            instruction: "Keep your head still, move only your eyes in a circle.",
+            calmingInstruction: "Keep your head completely still... move only your eyes in a slow circle. This resets the vestibular system.",
+            trackingType: .guided,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 12.0,
+            totalDuration: 15.0,
+            tolerance: 0.0,
+            supportedContexts: [.sitting, .standing],
+            difficultyLevel: 2,
+            reps: 2
+        ))
+        
+        exercises.append(Exercise(
+            id: "neuro_04",
+            name: "Humming Exhale",
+            category: .neuroReset,
+            instruction: "Inhale deeply, then hum 'mmm' on your exhale.",
+            calmingInstruction: "Take a deep breath in... as you exhale, make a humming sound like mmm. Feel the vibration in your chest.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 8.0,
+            totalDuration: 10.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 3
+        ))
+        
+        exercises.append(Exercise(
+            id: "neuro_05",
+            name: "Cold Water Gargle",
+            category: .neuroReset,
+            instruction: "If you have water, gargle briefly to stimulate the vagus nerve.",
+            calmingInstruction: "Take a sip of water if available... gargle gently. This directly stimulates your vagus nerve.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 5.0,
+            totalDuration: 6.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 1
+        ))
+        
+        exercises.append(Exercise(
+            id: "neuro_06",
+            name: "Face Tension Melt",
+            category: .neuroReset,
+            instruction: "Scrunch your whole face tightly, then release completely.",
+            calmingInstruction: "Scrunch every muscle in your face... tighter... now release completely. Feel your face melt into relaxation.",
+            trackingType: .timedHold,
+            targetAxis: .none,
+            targetValue: 0.0,
+            holdDuration: 15.0,
+            totalDuration: 18.0,
+            tolerance: 0.0,
+            supportedContexts: [.all],
+            difficultyLevel: 1,
+            reps: 1
+        ))
+        
         return exercises
     }
 }

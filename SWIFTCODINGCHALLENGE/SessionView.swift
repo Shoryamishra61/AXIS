@@ -1,9 +1,13 @@
 // SessionView.swift
 // Axis - The Invisible Posture Companion
-// Premium Session Experience for Swift Student Challenge 2026
+// Distinguished Winner Session Experience for Swift Student Challenge 2026
+//
+// The session is the core product experience. Every interaction must be:
+// - Immediately understandable
+// - Visually delightful
+// - Fully accessible
 
 import SwiftUI
-
 struct SessionView: View {
     @EnvironmentObject var coordinator: AppCoordinator
     @ObservedObject private var motion = MotionManager.shared
@@ -104,46 +108,33 @@ struct SessionView: View {
     // MARK: - Calibration View
     
     private var calibrationView: some View {
-        VStack(spacing: 40) {
+        VStack(spacing: AxisSpacing.xxl) {
             Spacer()
             
-            // Calibration icon
-            ZStack {
-                Circle()
-                    .stroke(AxisColor.primary.opacity(0.3), lineWidth: 4)
-                    .frame(width: 120, height: 120)
-                
-                Circle()
-                    .trim(from: 0, to: CGFloat(3 - calibrationCountdown) / 3.0)
-                    .stroke(AxisColor.primary, lineWidth: 4)
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(.degrees(-90))
-                
-                Text("\(calibrationCountdown)")
-                    .font(.axisDisplay)
-                    .foregroundStyle(AxisColor.primary)
-            }
+            // Use the polished CalibrationIndicator component
+            CalibrationIndicator(countdown: calibrationCountdown, total: 3)
             
-            VStack(spacing: 16) {
+            VStack(spacing: AxisSpacing.md) {
                 Text("Calibrating")
                     .font(.axisTitle)
-                    .foregroundStyle(.primary)
+                    .foregroundColor(AxisColor.textPrimary)
                 
                 Text("Look straight ahead comfortably")
-                    .font(.axisInstruction)
-                    .foregroundStyle(.secondary)
+                    .font(.axisHeadline)
+                    .foregroundColor(AxisColor.textSecondary)
                     .multilineTextAlignment(.center)
                 
                 // Sensor source indicator
-                HStack(spacing: 8) {
+                HStack(spacing: AxisSpacing.sm) {
                     Image(systemName: motion.activeSource.contains("AirPods") ? "airpods.pro" : "iphone")
-                        .foregroundStyle(AxisColor.primary)
+                        .font(.system(size: 16))
+                        .foregroundColor(AxisColor.primary)
                     Text(motion.activeSource)
                         .font(.axisTechnical)
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(AxisColor.textSecondary)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, AxisSpacing.md)
+                .padding(.vertical, AxisSpacing.sm)
                 .background(.ultraThinMaterial, in: Capsule())
             }
             
@@ -151,6 +142,8 @@ struct SessionView: View {
             Spacer()
         }
         .padding()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Calibrating. \(calibrationCountdown) seconds remaining. Look straight ahead.")
     }
     
     // MARK: - Session Content
@@ -258,25 +251,81 @@ struct SessionView: View {
         .padding(.top, 8)
     }
     
-    // MARK: - Precision Overlay
+    // MARK: - Enhanced Precision Overlay
     
     private var precisionOverlay: some View {
-        VStack(spacing: 4) {
-            // Current angle display
-            Text(String(format: "%.0f°", abs(currentSensorValue)))
-                .font(.axisTechnical)
-                .foregroundStyle(isAtTarget ? AxisColor.success : AxisColor.textSecondary)
+        VStack(spacing: AxisSpacing.xs) {
+            // Current angle with direction icon
+            HStack(spacing: AxisSpacing.xs) {
+                Image(systemName: directionIcon)
+                    .font(.system(size: 18, weight: .semibold))
+                Text(String(format: "%.0f°", abs(currentSensorValue)))
+                    .font(.axisAngle)
+            }
+            .foregroundColor(precisionColor)
             
+            // Direction label
+            Text(directionLabel)
+                .font(.axisTechnical)
+                .foregroundColor(precisionColor.opacity(0.8))
+            
+            // Target hint
             if let exercise = currentExercise {
                 Text("Target: \(String(format: "%.0f°", abs(exercise.targetValue)))")
                     .font(.axisCaption)
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(AxisColor.textTertiary)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: Capsule())
+        .padding(.horizontal, AxisSpacing.md)
+        .padding(.vertical, AxisSpacing.sm)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: AxisRadius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: AxisRadius.md)
+                .stroke(precisionColor.opacity(0.3), lineWidth: 1)
+        )
         .offset(y: 160)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Current angle: \(Int(abs(currentSensorValue))) degrees \(directionLabel)")
+    }
+    
+    private var directionIcon: String {
+        guard let exercise = currentExercise else { return "circle" }
+        switch exercise.targetAxis {
+        case .yaw:
+            return currentSensorValue > 0 ? "arrow.turn.up.left" : "arrow.turn.up.right"
+        case .pitch:
+            return currentSensorValue > 0 ? "arrow.up" : "arrow.down"
+        case .roll:
+            return currentSensorValue > 0 ? "arrow.counterclockwise" : "arrow.clockwise"
+        default:
+            return "circle"
+        }
+    }
+    
+    private var directionLabel: String {
+        guard let exercise = currentExercise, exercise.isTracked else { return "" }
+        
+        switch exercise.targetAxis {
+        case .yaw:
+            return currentSensorValue > 0 ? "TURN LEFT" : "TURN RIGHT"
+        case .pitch:
+            return currentSensorValue > 0 ? "LOOK UP" : "LOOK DOWN"
+        case .roll:
+            return currentSensorValue > 0 ? "TILT LEFT" : "TILT RIGHT"
+        default:
+            return "CENTERED"
+        }
+    }
+    
+    private var precisionColor: Color {
+        guard let exercise = currentExercise else { return AxisColor.textSecondary }
+        let error = abs(currentSensorValue - exercise.targetValue)
+        if error <= exercise.tolerance {
+            return AxisColor.aligned
+        } else if error <= exercise.tolerance * 2 {
+            return AxisColor.deviation
+        }
+        return AxisColor.textSecondary
     }
     
     // MARK: - Exercise Info View

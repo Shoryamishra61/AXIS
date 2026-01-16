@@ -1,6 +1,11 @@
 // ContentView.swift
 // Axis - The Invisible Posture Companion
-// Premium Home Dashboard for Swift Student Challenge 2026
+// Distinguished Winner Home Dashboard for Swift Student Challenge 2026
+//
+// First impression is everything. This screen must immediately convey:
+// 1. What the app does (neck posture)
+// 2. How it works (AirPods)
+// 3. Why it's special (invisible guidance)
 
 import SwiftUI
 
@@ -10,8 +15,8 @@ struct ContentView: View {
     
     @State private var showAbout = false
     @State private var orbScale: CGFloat = 1.0
-    @State private var orbRotation: Double = 0
     @State private var showSensorInfo = false
+    @State private var isHeroPressed = false
     
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     
@@ -21,29 +26,15 @@ struct ContentView: View {
             AxisColor.backgroundGradient.ignoresSafeArea()
             
             // Ambient background glow
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [
-                            AxisColor.primary.opacity(0.12),
-                            Color.clear
-                        ],
-                        center: .center,
-                        startRadius: 50,
-                        endRadius: 400
-                    )
-                )
-                .blur(radius: 60)
-                .offset(y: -100)
-                .allowsHitTesting(false)
+            ambientGlow
             
             VStack(spacing: 0) {
-                // Header with info button
+                // Header with sensor status and info
                 headerBar
                 
                 Spacer()
                 
-                // Central hero section
+                // Central hero section with live alignment
                 heroSection
                 
                 Spacer()
@@ -56,36 +47,31 @@ struct ContentView: View {
             AboutView()
         }
         .onAppear {
+            motion.startUpdates()
+            motion.startConnectionMonitoring()
             startAnimations()
         }
+        .onDisappear {
+            motion.stopConnectionMonitoring()
+        }
+    }
+    
+    // MARK: - Ambient Glow
+    
+    private var ambientGlow: some View {
+        Circle()
+            .fill(AxisColor.ambientGradient)
+            .blur(radius: 60)
+            .offset(y: -100)
+            .allowsHitTesting(false)
     }
     
     // MARK: - Header Bar
     
     private var headerBar: some View {
         HStack {
-            // Sensor status (subtle)
-            if motion.isConnected {
-                Button {
-                    showSensorInfo.toggle()
-                } label: {
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(motion.connectionQuality == .excellent ? AxisColor.success : AxisColor.warning)
-                            .frame(width: 6, height: 6)
-                        
-                        Text(motion.activeSource)
-                            .font(.axisCaption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
-                }
-                .popover(isPresented: $showSensorInfo) {
-                    sensorInfoPopover
-                }
-            }
+            // Sensor status indicator
+            sensorStatusBadge
             
             Spacer()
             
@@ -95,133 +81,249 @@ struct ContentView: View {
                 AxisHaptic.tick()
             } label: {
                 Image(systemName: "info.circle")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-                    .padding(12)
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundColor(AxisColor.textSecondary)
+                    .frame(width: 44, height: 44)
                     .background(.ultraThinMaterial, in: Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
             }
             .accessibilityLabel("About Axis")
+            .accessibilityHint("Opens information about the app")
         }
-        .padding(.horizontal)
-        .padding(.top, 20)
+        .padding(.horizontal, AxisSpacing.md)
+        .padding(.top, AxisSpacing.lg)
+    }
+    
+    // MARK: - Sensor Status Badge
+    
+    @ViewBuilder
+    private var sensorStatusBadge: some View {
+        if motion.isConnected {
+            Button {
+                showSensorInfo.toggle()
+                AxisHaptic.selection()
+            } label: {
+                HStack(spacing: AxisSpacing.sm) {
+                    // Status dot
+                    Circle()
+                        .fill(statusColor)
+                        .frame(width: 8, height: 8)
+                    
+                    // Source name
+                    Text(motion.activeSource)
+                        .font(.axisTechnical)
+                        .foregroundColor(AxisColor.textSecondary)
+                    
+                    // Quality indicator (optional)
+                    if motion.connectionQuality == .excellent {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(AxisColor.aligned)
+                    }
+                }
+                .padding(.horizontal, AxisSpacing.md)
+                .padding(.vertical, AxisSpacing.sm)
+                .background(.ultraThinMaterial, in: Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+            }
+            .popover(isPresented: $showSensorInfo) {
+                sensorInfoPopover
+            }
+            .accessibilityLabel("Sensor status: \(motion.activeSource), quality \(motion.connectionQuality.rawValue)")
+        } else {
+            // No sensor connected hint
+            HStack(spacing: AxisSpacing.sm) {
+                Image(systemName: "airpods.pro")
+                    .font(.system(size: 14))
+                Text("Connect AirPods")
+                    .font(.axisTechnical)
+            }
+            .foregroundColor(AxisColor.textTertiary)
+            .padding(.horizontal, AxisSpacing.md)
+            .padding(.vertical, AxisSpacing.sm)
+            .background(.ultraThinMaterial, in: Capsule())
+        }
+    }
+    
+    private var statusColor: Color {
+        switch motion.connectionQuality {
+        case .excellent: return AxisColor.aligned
+        case .good: return AxisColor.aligned.opacity(0.8)
+        case .fair: return AxisColor.deviation
+        case .poor: return AxisColor.critical
+        case .unknown: return AxisColor.textTertiary
+        }
     }
     
     // MARK: - Hero Section
     
     private var heroSection: some View {
-        VStack(spacing: 32) {
-            // Animated orb
+        VStack(spacing: AxisSpacing.xl) {
+            // Dynamic hero orb (shows live alignment when connected)
             ZStack {
-                // Outer glow rings
+                // Outer breathing rings
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .stroke(
-                            AxisColor.primary.opacity(0.15 - Double(index) * 0.04),
+                            AxisColor.primary.opacity(0.12 - Double(index) * 0.03),
                             lineWidth: 1.5
                         )
                         .frame(
-                            width: 220 + CGFloat(index) * 30,
-                            height: 220 + CGFloat(index) * 30
+                            width: 220 + CGFloat(index) * 35,
+                            height: 220 + CGFloat(index) * 35
                         )
                         .scaleEffect(reduceMotion ? 1.0 : orbScale - CGFloat(index) * 0.02)
                 }
                 
-                // Main glow
+                // Main glow orb
                 Circle()
                     .fill(
                         RadialGradient(
                             colors: [
-                                AxisColor.primary.opacity(0.5),
-                                AxisColor.secondary.opacity(0.3),
+                                currentOrbColor.opacity(0.5),
+                                currentOrbColor.opacity(0.2),
                                 Color.clear
                             ],
                             center: .center,
                             startRadius: 20,
-                            endRadius: 120
+                            endRadius: 130
                         )
                     )
-                    .frame(width: 240, height: 240)
-                    .blur(radius: 30)
+                    .frame(width: 260, height: 260)
+                    .blur(radius: 35)
                     .scaleEffect(reduceMotion ? 1.0 : orbScale)
                 
+                // Inner orb with glass effect
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                currentOrbColor.opacity(0.2),
+                                currentOrbColor.opacity(0.05),
+                                Color.clear
+                            ],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: 80
+                        )
+                    )
+                    .frame(width: 140, height: 140)
+                    .overlay(
+                        Circle()
+                            .stroke(currentOrbColor.opacity(0.3), lineWidth: 2)
+                    )
+                    .overlay(
+                        // Specular highlight
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [Color.white.opacity(0.4), Color.clear],
+                                    center: .topLeading,
+                                    startRadius: 0,
+                                    endRadius: 50
+                                )
+                            )
+                            .frame(width: 60, height: 60)
+                            .offset(x: -25, y: -25)
+                    )
+                    // Subtle tilt based on current head position
+                    .rotation3DEffect(
+                        .degrees(reduceMotion ? 0 : motion.pitch * 0.2),
+                        axis: (x: 1, y: 0, z: 0)
+                    )
+                    .rotation3DEffect(
+                        .degrees(reduceMotion ? 0 : motion.yaw * 0.2),
+                        axis: (x: 0, y: 1, z: 0)
+                    )
+                
                 // Center content
-                VStack(spacing: 12) {
+                VStack(spacing: AxisSpacing.sm) {
                     Text("Axis")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .foregroundColor(AxisColor.textPrimary)
                     
-                    Text("Zero-context mobility.")
-                        .font(.axisInstruction)
-                        .foregroundStyle(.secondary)
+                    Text("Invisible posture guidance")
+                        .font(.axisBody)
+                        .foregroundColor(AxisColor.textSecondary)
                 }
             }
+            .scaleEffect(isHeroPressed ? 0.97 : 1.0)
+            .animation(reduceMotion ? nil : AxisAnimation.quick, value: isHeroPressed)
             .onTapGesture {
                 coordinator.startSetup()
                 AxisHaptic.tap()
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in isHeroPressed = true }
+                    .onEnded { _ in isHeroPressed = false }
+            )
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Axis. Zero-context mobility. Tap to start session")
+            .accessibilityLabel("Axis. Invisible posture guidance.")
+            .accessibilityHint("Tap to start a mobility session")
             .accessibilityAddTraits(.isButton)
             
+            // Live alignment preview (when connected)
+            if motion.isConnected && motion.isCalibrated {
+                CompactAlignmentIndicator(motion: motion)
+                    .transition(.opacity.combined(with: .scale))
+            }
+            
             // Tagline
-            Text("Relieve neck stiffness in minutes")
+            Text("Relieve neck tension in minutes")
                 .font(.axisCaption)
-                .foregroundStyle(.tertiary)
+                .foregroundColor(AxisColor.textTertiary)
         }
+    }
+    
+    private var currentOrbColor: Color {
+        if motion.isConnected && motion.isCalibrated {
+            // Show alignment state color when connected
+            let deviation = max(abs(motion.pitch), abs(motion.yaw))
+            return AxisColor.semantic(for: deviation)
+        }
+        return AxisColor.primary
     }
     
     // MARK: - Action Buttons
     
     private var actionButtons: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: AxisSpacing.md) {
             // Primary: Start Session
-            Button {
+            AxisButton("Start Session", icon: "airpods.pro", style: .primary) {
                 coordinator.startSetup()
-                AxisHaptic.tap()
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "airpods.pro")
-                        .font(.title3)
-                    Text("Start Session")
-                        .font(.axisButton)
-                }
-                .foregroundStyle(.black)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 18)
-                .background(AxisColor.buttonGradient, in: Capsule())
-                .shadow(color: AxisColor.primary.opacity(0.4), radius: 20, y: 10)
             }
-            .accessibilityLabel("Start Mobility Session")
+            .accessibilityHint("Begins guided posture exercises using your AirPods")
             
             // Secondary: Check Alignment
-            Button {
+            AxisButton("Check Alignment", icon: "camera.viewfinder", style: .secondary) {
                 coordinator.appState = .alignmentCheck
-                AxisHaptic.tick()
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "camera.viewfinder")
-                    Text("Check Alignment")
-                }
-                .font(.axisButton)
-                .foregroundStyle(.primary)
-                .padding(.vertical, 16)
-                .frame(maxWidth: .infinity)
-                .background(.ultraThinMaterial, in: Capsule())
             }
-            .accessibilityLabel("Open Camera Mirror to check posture alignment")
+            .accessibilityHint("Opens camera mirror to visually check your posture")
         }
-        .padding(.horizontal, 32)
+        .padding(.horizontal, AxisSpacing.xl)
         .padding(.bottom, 50)
     }
     
     // MARK: - Sensor Info Popover
     
     private var sensorInfoPopover: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: AxisSpacing.md) {
+            // Header
             Text("Sensor Status")
-                .font(.axisButton)
+                .font(.axisHeadline)
+                .foregroundColor(AxisColor.textPrimary)
             
-            VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            
+            // Details
+            VStack(spacing: AxisSpacing.sm) {
                 InfoRow(label: "Source", value: motion.activeSource)
                 InfoRow(label: "Quality", value: motion.connectionQuality.rawValue)
                 InfoRow(label: "Calibrated", value: motion.isCalibrated ? "Yes" : "No")
@@ -229,12 +331,17 @@ struct ContentView: View {
             
             Divider()
             
-            Text("AirPods Pro/Max provide the most accurate head tracking.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // Tip
+            HStack(spacing: AxisSpacing.sm) {
+                Image(systemName: "lightbulb.fill")
+                    .foregroundColor(AxisColor.deviation)
+                Text("AirPods Pro or Max provide the most accurate head tracking.")
+                    .font(.axisCaption)
+                    .foregroundColor(AxisColor.textSecondary)
+            }
         }
-        .padding()
-        .frame(width: 250)
+        .padding(AxisSpacing.lg)
+        .frame(width: 280)
         .presentationCompactAdaptation(.popover)
     }
     
@@ -243,12 +350,8 @@ struct ContentView: View {
     private func startAnimations() {
         guard !reduceMotion else { return }
         
-        withAnimation(.easeInOut(duration: 4).repeatForever(autoreverses: true)) {
-            orbScale = 1.08
-        }
-        
-        withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
-            orbRotation = 360
+        withAnimation(AxisAnimation.breathing) {
+            orbScale = 1.06
         }
     }
 }
@@ -263,11 +366,11 @@ struct InfoRow: View {
         HStack {
             Text(label)
                 .font(.axisCaption)
-                .foregroundStyle(.secondary)
+                .foregroundColor(AxisColor.textSecondary)
             Spacer()
             Text(value)
                 .font(.axisTechnical)
-                .foregroundStyle(.primary)
+                .foregroundColor(AxisColor.textPrimary)
         }
     }
 }

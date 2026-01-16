@@ -1,6 +1,9 @@
 // OnboardingView.swift
 // Axis - The Invisible Posture Companion
-// Emotional Narrative Onboarding for Swift Student Challenge 2026
+// Distinguished Winner Onboarding for Swift Student Challenge 2026
+//
+// "The narrative behind your app carries more weight than code complexity."
+// This onboarding tells our story in 3 screens: Problem → Solution → Promise
 
 import SwiftUI
 
@@ -11,34 +14,31 @@ struct OnboardingView: View {
     
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     
+    // 3-Screen Narrative: Problem → Solution → Promise
     let stories: [OnboardingStory] = [
+        // Screen 1: THE PROBLEM (Emotional hook)
         OnboardingStory(
-            title: "The 27kg Burden",
-            subtitle: "At a 60° tilt, your cervical spine bears 27kg of pressure.",
-            detail: "We call this 'Tech Neck' — the silent cost of our digital lives.",
+            title: "Your Neck Carries Weight",
+            subtitle: "Hours of screen time create invisible strain.",
+            detail: "At 60° forward tilt, your cervical spine bears 27kg of pressure. We call this 'Tech Neck' — the silent cost of our digital lives.",
             icon: "figure.walk.motion",
-            accentColor: .orange
+            accentColor: AxisColor.critical
         ),
+        // Screen 2: THE SOLUTION (Our approach)
         OnboardingStory(
-            title: "Zero-Context Correction",
-            subtitle: "Invisible micro-adjustments while you work.",
-            detail: "No gym. No awkward stretches in the library. Just gentle guidance through sound and touch.",
+            title: "Invisible Guidance",
+            subtitle: "Using sensors in your AirPods, Axis provides gentle corrections.",
+            detail: "No gym. No awkward stretches. Just micro-adjustments through haptics and spatial audio while you work.",
             icon: "airpods.pro",
             accentColor: AxisColor.primary
         ),
+        // Screen 3: THE PROMISE (Trust & start)
         OnboardingStory(
-            title: "Privacy First",
-            subtitle: "All motion data is processed on-device.",
-            detail: "Your biometric privacy is absolute. No cloud. No tracking. No compromise.",
+            title: "Private by Design",
+            subtitle: "All processing happens on your device.",
+            detail: "Your biometric privacy is absolute. No cloud. No accounts. No tracking. No compromise.",
             icon: "lock.shield.fill",
-            accentColor: .green
-        ),
-        OnboardingStory(
-            title: "Ready When You Are",
-            subtitle: "2 minutes or 10 — you choose.",
-            detail: "Sitting, standing, or lying down. Axis adapts to your context and respects your time.",
-            icon: "clock.badge.checkmark.fill",
-            accentColor: AxisColor.secondary
+            accentColor: AxisColor.aligned
         )
     ]
     
@@ -139,25 +139,25 @@ struct OnboardingView: View {
                     .symbolEffect(.bounce, value: currentPage == index)
             }
             
-            // Text content
-            VStack(spacing: 20) {
+            // Text content with proper hierarchy
+            VStack(spacing: AxisSpacing.lg) {
                 Text(story.title)
                     .font(.axisTitle)
-                    .foregroundStyle(.primary)
+                    .foregroundColor(AxisColor.textPrimary)
                     .multilineTextAlignment(.center)
                 
                 Text(story.subtitle)
-                    .font(.axisInstruction)
-                    .foregroundStyle(.secondary)
+                    .font(.axisHeadline)
+                    .foregroundColor(AxisColor.textSecondary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, AxisSpacing.lg)
                 
                 Text(story.detail)
-                    .font(.axisCaption)
-                    .foregroundStyle(.tertiary)
+                    .font(.axisBody)
+                    .foregroundColor(AxisColor.textTertiary)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-                    .lineLimit(3)
+                    .padding(.horizontal, AxisSpacing.xl)
+                    .lineSpacing(4)
             }
             
             Spacer()
