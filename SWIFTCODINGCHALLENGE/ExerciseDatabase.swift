@@ -1,3 +1,11 @@
+//
+//  ExerciseDatabase.swift
+//  SWIFTCODINGCHALLENGE
+//
+//  Created by admin67 on 15/01/26.
+//
+
+
 // ExerciseDatabase.swift
 // Axis - The Invisible Posture Companion
 // Comprehensive 58-Exercise Database for Swift Student Challenge 2026

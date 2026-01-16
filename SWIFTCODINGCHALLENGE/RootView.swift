@@ -1,39 +1,59 @@
+// RootView.swift
+// Axis - The Invisible Posture Companion
+// Navigation Root with Onboarding for Swift Student Challenge 2026
+
 import SwiftUI
 
 struct RootView: View {
-    @EnvironmentObject var coordinator: AppCoordinator
+    @StateObject private var coordinator = AppCoordinator()
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
     
     var body: some View {
         ZStack {
-            // Background is global to prevent white flashes during transitions
-            Color(hex: "1A2A3A").ignoresSafeArea()
+            // Global dark background (prevents white flashes)
+            AxisColor.backgroundDark.ignoresSafeArea()
             
-            // The Switchboard
-            switch coordinator.appState {
-            case .idle:
-                ContentView() // Your polished Home Screen
+            // Check onboarding status
+            if !coordinator.hasCompletedOnboarding {
+                OnboardingView(hasCompletedOnboarding: $coordinator.hasCompletedOnboarding)
                     .transition(.opacity)
-                
-            case .setup:
-                ContextView() // Your polished Setup Screen
-                    .transition(.move(edge: .bottom))
-                
-            case .alignmentCheck:
-                CameraView() // Your Green-Line Camera
-                    .transition(.opacity)
-                
-            case .sessionRunning:
-                SessionView(
-                    selectedPosture: coordinator.selectedPosture,
-                    selectedDuration: coordinator.selectedDuration
-                )
-                .transition(.opacity)
-                
-            case .summary:
-                SummaryView() // We need to build this simple screen
-                    .transition(.scale)
+            } else {
+                // Main app navigation
+                mainContent
             }
         }
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: coordinator.appState)
+        .environmentObject(coordinator)
+        .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.8), value: coordinator.appState)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: coordinator.hasCompletedOnboarding)
+    }
+    
+    // MARK: - Main Content Switchboard
+    
+    @ViewBuilder
+    private var mainContent: some View {
+        switch coordinator.appState {
+        case .idle:
+            ContentView()
+                .transition(.opacity)
+            
+        case .setup:
+            ContextView()
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+            
+        case .alignmentCheck:
+            CameraView()
+                .transition(.opacity)
+            
+        case .sessionRunning:
+            SessionView(
+                selectedPosture: coordinator.selectedPosture,
+                selectedDuration: coordinator.selectedDuration
+            )
+            .transition(.opacity)
+            
+        case .summary:
+            SummaryView()
+                .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
+        }
     }
 }

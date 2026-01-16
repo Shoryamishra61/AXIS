@@ -1,77 +1,448 @@
+// CameraView.swift
+// Axis - The Invisible Posture Companion
+// Alignment Mirror with Body Pose Detection for Swift Student Challenge 2026
+
 import SwiftUI
+import AVFoundation
+import Vision
+import Combine
 
 struct CameraView: View {
-    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var coordinator: AppCoordinator
+    @StateObject private var cameraController = CameraController()
+    
+    @State private var showPoseOverlay = true
+    @State private var alignmentScore: Double = 0.0
+    @State private var feedbackMessage = "Checking alignment..."
     
     var body: some View {
         ZStack {
-            // 1. The Fake Camera Feed (Black Background)
-            Color.black.ignoresSafeArea()
+            // Camera preview
+            CameraPreviewLayer(session: cameraController.session)
+                .ignoresSafeArea()
             
-            // 2. The "Video" (Just a placeholder face)
-            VStack {
-                Spacer()
-                Image(systemName: "face.smiling")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 150)
-                    .foregroundStyle(.gray)
-                    .opacity(0.5)
-                Spacer()
+            // Pose overlay
+            if showPoseOverlay, let pose = cameraController.detectedPose {
+                PoseOverlayView(pose: pose)
+                    .ignoresSafeArea()
             }
             
-            // 3. The "Augmented Reality" Overlay
+            // Alignment guide lines
+            alignmentGuides
+            
+            // UI Overlay
             VStack {
+                // Header
+                headerBar
+                
                 Spacer()
-                // Fake Alignment Line
-                Rectangle()
-                    .fill(Color.green)
-                    .frame(width: 2, height: 300)
-                    .overlay(
-                        Text("Perfectly Aligned")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                            .offset(x: 60)
+                
+                // Feedback card
+                feedbackCard
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 40)
+            }
+        }
+        .onAppear {
+            cameraController.startSession()
+        }
+        .onDisappear {
+            cameraController.stopSession()
+        }
+        .onChange(of: cameraController.detectedPose) { _ in
+            updateAlignmentFeedback()
+        }
+    }
+    
+    // MARK: - Header Bar
+    
+    private var headerBar: some View {
+        HStack {
+            // Close button
+            Button {
+                coordinator.returnHome()
+                AxisHaptic.tick()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+            
+            Spacer()
+            
+            // Title
+            Text("Alignment Mirror")
+                .font(.axisButton)
+                .foregroundStyle(.white)
+            
+            Spacer()
+            
+            // Toggle pose lines
+            Button {
+                showPoseOverlay.toggle()
+                AxisHaptic.tick()
+            } label: {
+                Image(systemName: showPoseOverlay ? "figure.stand" : "figure.stand.line.dotted.figure.stand")
+                    .foregroundStyle(showPoseOverlay ? AxisColor.primary : .white.opacity(0.7))
+                    .frame(width: 44, height: 44)
+                    .background(.ultraThinMaterial, in: Circle())
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 60)
+    }
+    
+    // MARK: - Alignment Guides
+    
+    private var alignmentGuides: some View {
+        GeometryReader { geo in
+            let centerX = geo.size.width / 2
+            
+            // Vertical center line
+            Path { path in
+                path.move(to: CGPoint(x: centerX, y: 0))
+                path.addLine(to: CGPoint(x: centerX, y: geo.size.height))
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1, dash: [10, 5]))
+            .foregroundStyle(AxisColor.primary.opacity(0.5))
+            
+            // Horizontal guide (shoulders)
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: geo.size.height * 0.35))
+                path.addLine(to: CGPoint(x: geo.size.width, y: geo.size.height * 0.35))
+            }
+            .stroke(style: StrokeStyle(lineWidth: 1, dash: [10, 5]))
+            .foregroundStyle(AxisColor.secondary.opacity(0.3))
+        }
+        .allowsHitTesting(false)
+    }
+    
+    // MARK: - Feedback Card
+    
+    private var feedbackCard: some View {
+        VStack(spacing: 16) {
+            // Score circle
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.1), lineWidth: 6)
+                    .frame(width: 70, height: 70)
+                
+                Circle()
+                    .trim(from: 0, to: alignmentScore)
+                    .stroke(
+                        AxisColor.accuracy(alignmentScore),
+                        style: StrokeStyle(lineWidth: 6, lineCap: .round)
                     )
-                Spacer()
+                    .frame(width: 70, height: 70)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeOut(duration: 0.3), value: alignmentScore)
+                
+                Text("\(Int(alignmentScore * 100))")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
             }
             
-            // 4. UI Controls
-            VStack {
-                HStack {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.white)
-                    }
-                    Spacer()
-                    Text("Posture Snapshot")
-                        .foregroundStyle(.white)
-                        .padding(8)
-                        .background(.ultraThinMaterial, in: Capsule())
-                    Spacer()
-                    // Fake Camera Flip Button
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(.white)
-                }
-                .padding()
-                
-                Spacer()
-                
-                // "Snap" Button
-                Button {
-                    // Just dismiss for the demo
-                    dismiss()
-                } label: {
-                    Circle()
-                        .strokeBorder(.white, lineWidth: 4)
-                        .frame(width: 70, height: 70)
-                        .background(Circle().fill(.white.opacity(0.2)))
-                }
-                .padding(.bottom, 40)
+            // Feedback message
+            Text(feedbackMessage)
+                .font(.axisInstruction)
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+            
+            // Tips
+            if let pose = cameraController.detectedPose {
+                postureTips(for: pose)
+            }
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
+    }
+    
+    // MARK: - Posture Tips
+    
+    @ViewBuilder
+    private func postureTips(for pose: DetectedPose) -> some View {
+        VStack(spacing: 8) {
+            if !pose.shouldersLevel {
+                TipRow(icon: "arrow.up.and.down", text: "Level your shoulders")
+            }
+            if !pose.headCentered {
+                TipRow(icon: "arrow.left.and.right", text: "Center your head")
+            }
+            if !pose.neckStraight {
+                TipRow(icon: "arrow.up", text: "Lift your chin slightly")
             }
         }
     }
+    
+    // MARK: - Update Feedback
+    
+    private func updateAlignmentFeedback() {
+        guard let pose = cameraController.detectedPose else {
+            alignmentScore = 0
+            feedbackMessage = "Position yourself in frame"
+            return
+        }
+        
+        // Calculate score based on pose
+        var score: Double = 0
+        var issues: [String] = []
+        
+        if pose.shouldersLevel {
+            score += 0.33
+        } else {
+            issues.append("shoulders")
+        }
+        
+        if pose.headCentered {
+            score += 0.33
+        } else {
+            issues.append("head")
+        }
+        
+        if pose.neckStraight {
+            score += 0.34
+        } else {
+            issues.append("neck")
+        }
+        
+        alignmentScore = score
+        
+        // Generate feedback message
+        if score >= 0.9 {
+            feedbackMessage = "Excellent alignment! ✓"
+        } else if score >= 0.6 {
+            feedbackMessage = "Good posture. Minor adjustments needed."
+        } else if !issues.isEmpty {
+            feedbackMessage = "Adjust your \(issues.joined(separator: " and "))."
+        } else {
+            feedbackMessage = "Keep adjusting..."
+        }
+    }
 }
+
+// MARK: - Tip Row
+
+struct TipRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(AxisColor.warning)
+                .font(.caption)
+            Text(text)
+                .font(.axisCaption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Detected Pose Model
+
+struct DetectedPose: Equatable {
+    let leftShoulder: CGPoint?
+    let rightShoulder: CGPoint?
+    let nose: CGPoint?
+    let leftEar: CGPoint?
+    let rightEar: CGPoint?
+    
+    var shouldersLevel: Bool {
+        guard let left = leftShoulder, let right = rightShoulder else { return true }
+        return abs(left.y - right.y) < 30
+    }
+    
+    var headCentered: Bool {
+        guard let nose = nose, let left = leftShoulder, let right = rightShoulder else { return true }
+        let shoulderCenter = (left.x + right.x) / 2
+        return abs(nose.x - shoulderCenter) < 40
+    }
+    
+    var neckStraight: Bool {
+        guard let nose = nose, let left = leftShoulder, let right = rightShoulder else { return true }
+        let shoulderCenter = CGPoint(x: (left.x + right.x) / 2, y: (left.y + right.y) / 2)
+        let expectedNoseY = shoulderCenter.y - 80 // Expected distance
+        return nose.y <= expectedNoseY
+    }
+}
+
+// MARK: - Camera Controller
+
+class CameraController: NSObject, ObservableObject {
+    let session = AVCaptureSession()
+    @Published var detectedPose: DetectedPose?
+    
+    private let poseRequest = VNDetectHumanBodyPoseRequest()
+    private var videoOutput: AVCaptureVideoDataOutput?
+    
+    override init() {
+        super.init()
+        setupCamera()
+    }
+    
+    private func setupCamera() {
+        session.sessionPreset = .high
+        
+        // Get front camera
+        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
+            print("Front camera not available")
+            return
+        }
+        
+        do {
+            let input = try AVCaptureDeviceInput(device: camera)
+            if session.canAddInput(input) {
+                session.addInput(input)
+            }
+            
+            // Video output for Vision processing
+            let output = AVCaptureVideoDataOutput()
+            output.alwaysDiscardsLateVideoFrames = true
+            output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "pose.detection"))
+            
+            if session.canAddOutput(output) {
+                session.addOutput(output)
+            }
+            videoOutput = output
+            
+        } catch {
+            print("Camera setup error: \(error)")
+        }
+    }
+    
+    func startSession() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.session.startRunning()
+        }
+    }
+    
+    func stopSession() {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.session.stopRunning()
+        }
+    }
+}
+
+// MARK: - Video Delegate
+
+extension CameraController: AVCaptureVideoDataOutputSampleBufferDelegate {
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .leftMirrored)
+        
+        do {
+            try handler.perform([poseRequest])
+            
+            if let observation = poseRequest.results?.first {
+                let pose = extractPose(from: observation)
+                
+                DispatchQueue.main.async {
+                    self.detectedPose = pose
+                }
+            }
+        } catch {
+            // Pose detection failed - silently continue
+        }
+    }
+    
+    private func extractPose(from observation: VNHumanBodyPoseObservation) -> DetectedPose? {
+        func point(for joint: VNHumanBodyPoseObservation.JointName) -> CGPoint? {
+            guard let point = try? observation.recognizedPoint(joint),
+                  point.confidence > 0.3 else { return nil }
+            // Convert to view coordinates
+            return CGPoint(x: point.location.x * 400, y: (1 - point.location.y) * 600)
+        }
+        
+        return DetectedPose(
+            leftShoulder: point(for: .leftShoulder),
+            rightShoulder: point(for: .rightShoulder),
+            nose: point(for: .nose),
+            leftEar: point(for: .leftEar),
+            rightEar: point(for: .rightEar)
+        )
+    }
+}
+
+// MARK: - Camera Preview Layer
+
+struct CameraPreviewLayer: UIViewRepresentable {
+    let session: AVCaptureSession
+    
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        
+        let previewLayer = AVCaptureVideoPreviewLayer(session: session)
+        previewLayer.videoGravity = .resizeAspectFill
+        previewLayer.frame = UIScreen.main.bounds
+        
+        // Mirror for front camera
+        previewLayer.connection?.automaticallyAdjustsVideoMirroring = false
+        previewLayer.connection?.isVideoMirrored = true
+        
+        view.layer.addSublayer(previewLayer)
+        
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        if let previewLayer = uiView.layer.sublayers?.first as? AVCaptureVideoPreviewLayer {
+            previewLayer.frame = UIScreen.main.bounds
+        }
+    }
+}
+
+// MARK: - Pose Overlay View
+
+struct PoseOverlayView: View {
+    let pose: DetectedPose
+    
+    var body: some View {
+        Canvas { context, size in
+            // Draw shoulder line
+            if let left = pose.leftShoulder, let right = pose.rightShoulder {
+                var path = Path()
+                path.move(to: left)
+                path.addLine(to: right)
+                
+                context.stroke(
+                    path,
+                    with: .color(pose.shouldersLevel ? AxisColor.success : AxisColor.warning),
+                    lineWidth: 3
+                )
+                
+                // Shoulder dots
+                drawJoint(context: context, at: left, color: .white)
+                drawJoint(context: context, at: right, color: .white)
+            }
+            
+            // Draw neck line
+            if let left = pose.leftShoulder, let right = pose.rightShoulder, let nose = pose.nose {
+                let shoulderCenter = CGPoint(x: (left.x + right.x) / 2, y: (left.y + right.y) / 2)
+                
+                var neckPath = Path()
+                neckPath.move(to: shoulderCenter)
+                neckPath.addLine(to: nose)
+                
+                context.stroke(
+                    neckPath,
+                    with: .color(pose.headCentered ? AxisColor.success : AxisColor.warning),
+                    lineWidth: 2
+                )
+                
+                // Nose dot
+                drawJoint(context: context, at: nose, color: AxisColor.primary)
+            }
+        }
+    }
+    
+    private func drawJoint(context: GraphicsContext, at point: CGPoint, color: Color) {
+        let rect = CGRect(x: point.x - 6, y: point.y - 6, width: 12, height: 12)
+        context.fill(Path(ellipseIn: rect), with: .color(color))
+    }
+}
+

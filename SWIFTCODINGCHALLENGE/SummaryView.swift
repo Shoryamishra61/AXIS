@@ -1,88 +1,309 @@
+// SummaryView.swift
+// Axis - The Invisible Posture Companion
+// Session Summary with Real Metrics for Swift Student Challenge 2026
+
 import SwiftUI
 
 struct SummaryView: View {
     @EnvironmentObject var coordinator: AppCoordinator
+    @ObservedObject private var metrics = SessionMetrics.shared
     
-    // Animation States
-    @State private var showCheck = false
-    @State private var showText = false
+    @State private var showContent = false
+    @State private var animateProgress = false
+    @State private var celebrateComplete = false
+    
+    private var summary: SessionSummary {
+        metrics.getSummary()
+    }
     
     var body: some View {
         ZStack {
-            // 1. Consistent Deep Background
-            RadialGradient(
-                gradient: Gradient(colors: [Color(hex: "1A2A3A"), Color.black]),
-                center: .center,
-                startRadius: 5,
-                endRadius: 500
-            )
-            .ignoresSafeArea()
+            // Background
+            AxisColor.backgroundGradient.ignoresSafeArea()
             
-            VStack(spacing: 40) {
-                Spacer()
-                
-                // 2. Success Animation
-                ZStack {
-                    // Glowing Ring
-                    Circle()
-                        .stroke(Color.teal.opacity(0.3), lineWidth: 2)
-                        .frame(width: 120, height: 120)
-                        .scaleEffect(showCheck ? 1.0 : 0.5)
-                        .opacity(showCheck ? 1.0 : 0.0)
+            // Celebration particles
+            if celebrateComplete {
+                celebrationParticles
+            }
+            
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 32) {
+                    // Success header
+                    headerSection
+                        .opacity(showContent ? 1 : 0)
+                        .offset(y: showContent ? 0 : 20)
                     
-                    // The Checkmark
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 50, weight: .bold))
-                        .foregroundStyle(.white)
-                        .scaleEffect(showCheck ? 1.0 : 0.1)
-                        .opacity(showCheck ? 1.0 : 0.0)
-                }
-                
-                // 3. Editorial Text
-                VStack(spacing: 16) {
-                    Text("Session Complete")
-                        .font(.system(size: 32, weight: .medium, design: .serif)) // High-end look
-                        .foregroundStyle(.white)
-                        .opacity(showText ? 1.0 : 0.0)
-                        .offset(y: showText ? 0 : 20)
+                    // Performance level
+                    performanceBadge
+                        .opacity(showContent ? 1 : 0)
+                        .scaleEffect(showContent ? 1 : 0.8)
                     
-                    Text("You spent \(Int(coordinator.selectedDuration)) minutes restoring your \(coordinator.selectedPosture.lowercased()) alignment.")
-                        .font(.body)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                        .opacity(showText ? 1.0 : 0.0)
-                        .offset(y: showText ? 0 : 20)
+                    // Metrics cards
+                    metricsGrid
+                        .opacity(showContent ? 1 : 0)
+                        .offset(y: showContent ? 0 : 30)
+                    
+                    // Challenging exercises (if any)
+                    if !summary.challengingExercises.isEmpty {
+                        challengingSection
+                            .opacity(showContent ? 1 : 0)
+                    }
+                    
+                    // Done button
+                    doneButton
+                        .opacity(showContent ? 1 : 0)
+                        .offset(y: showContent ? 0 : 20)
                 }
-                
-                Spacer()
-                
-                // 4. "Done" Action
-                Button {
-                    // This calls the Coordinator to safely reset the state
-                    coordinator.returnHome()
-                } label: {
-                    Text("Return Home")
-                        .font(.headline)
-                        .foregroundStyle(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.white)
-                        .clipShape(Capsule())
-                }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 50)
-                .opacity(showText ? 1.0 : 0.0)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 40)
             }
         }
         .onAppear {
-            // Staggered Animations for a "Premium" feel
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.6)) {
-                showCheck = true
+            withAnimation(.easeOut(duration: 0.6).delay(0.2)) {
+                showContent = true
             }
-            withAnimation(.easeOut(duration: 0.8).delay(0.3)) {
-                showText = true
+            withAnimation(.easeOut(duration: 0.8).delay(0.5)) {
+                animateProgress = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                celebrateComplete = true
+                AxisHaptic.success()
             }
         }
     }
+    
+    // MARK: - Header Section
+    
+    private var headerSection: some View {
+        VStack(spacing: 16) {
+            // Sparkle icon with animation
+            ZStack {
+                Circle()
+                    .fill(AxisColor.success.opacity(0.15))
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "sparkles")
+                    .font(.system(size: 48))
+                    .foregroundStyle(AxisColor.success)
+                    .symbolEffect(.bounce, value: showContent)
+            }
+            
+            Text("Session Complete")
+                .font(.axisTitle)
+                .foregroundStyle(.primary)
+            
+            Text(summary.performanceLevel.message)
+                .font(.axisInstruction)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 20)
+        }
+    }
+    
+    // MARK: - Performance Badge
+    
+    private var performanceBadge: some View {
+        HStack(spacing: 12) {
+            Text(summary.performanceLevel.emoji)
+                .font(.system(size: 32))
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(summary.performanceLevel.rawValue)
+                    .font(.axisButton)
+                    .foregroundStyle(.primary)
+                
+                // Accuracy ring
+                HStack(spacing: 8) {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.white.opacity(0.1), lineWidth: 4)
+                            .frame(width: 40, height: 40)
+                        
+                        Circle()
+                            .trim(from: 0, to: animateProgress ? summary.averageAccuracy : 0)
+                            .stroke(
+                                AxisColor.accuracy(summary.averageAccuracy),
+                                style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                            )
+                            .frame(width: 40, height: 40)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeOut(duration: 1.0), value: animateProgress)
+                        
+                        Text(summary.formattedAccuracy)
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundStyle(AxisColor.accuracy(summary.averageAccuracy))
+                    }
+                    
+                    Text("Accuracy")
+                        .font(.axisCaption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+    }
+    
+    // MARK: - Metrics Grid
+    
+    private var metricsGrid: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 16) {
+                MetricCard(
+                    icon: "figure.walk",
+                    title: "Exercises",
+                    value: "\(summary.totalExercises)",
+                    color: AxisColor.primary
+                )
+                
+                MetricCard(
+                    icon: "target",
+                    title: "Time in Target",
+                    value: summary.formattedTimeInTarget,
+                    color: AxisColor.success
+                )
+            }
+            
+            HStack(spacing: 16) {
+                MetricCard(
+                    icon: "clock",
+                    title: "Duration",
+                    value: summary.formattedDuration,
+                    color: AxisColor.secondary
+                )
+                
+                MetricCard(
+                    icon: "flame",
+                    title: "Most Challenging",
+                    value: truncate(summary.mostChallenging, to: 12),
+                    color: AxisColor.warning,
+                    isSmallText: true
+                )
+            }
+        }
+    }
+    
+    // MARK: - Challenging Section
+    
+    private var challengingSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Areas to Focus")
+                .font(.axisTechnical)
+                .foregroundStyle(.secondary)
+            
+            VStack(spacing: 8) {
+                ForEach(summary.challengingExercises, id: \.self) { exercise in
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundStyle(AxisColor.warning)
+                            .font(.caption)
+                        
+                        Text(exercise)
+                            .font(.axisInstruction)
+                            .foregroundStyle(.primary)
+                        
+                        Spacer()
+                        
+                        Text("Practice more")
+                            .font(.axisCaption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(AxisColor.warning.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+    }
+    
+    // MARK: - Done Button
+    
+    private var doneButton: some View {
+        Button {
+            AxisHaptic.tap()
+            coordinator.returnHome()
+        } label: {
+            Text("Done")
+                .font(.axisButton)
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(Color.white, in: Capsule())
+                .shadow(color: Color.white.opacity(0.3), radius: 15, y: 5)
+        }
+        .padding(.top, 20)
+    }
+    
+    // MARK: - Celebration Particles
+    
+    private var celebrationParticles: some View {
+        GeometryReader { geo in
+            ForEach(0..<20, id: \.self) { index in
+                Circle()
+                    .fill(
+                        [AxisColor.success, AxisColor.primary, AxisColor.calm, AxisColor.secondary][index % 4]
+                    )
+                    .frame(width: CGFloat.random(in: 4...8))
+                    .position(
+                        x: CGFloat.random(in: 0...geo.size.width),
+                        y: CGFloat.random(in: -50...geo.size.height * 0.3)
+                    )
+                    .opacity(0.6)
+                    .animation(
+                        .easeOut(duration: Double.random(in: 1.5...3.0))
+                        .delay(Double(index) * 0.05),
+                        value: celebrateComplete
+                    )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+    
+    // MARK: - Helpers
+    
+    private func truncate(_ text: String, to length: Int) -> String {
+        if text.count <= length { return text }
+        return String(text.prefix(length - 3)) + "..."
+    }
+}
+
+// MARK: - Metric Card Component
+
+struct MetricCard: View {
+    let icon: String
+    let title: String
+    let value: String
+    let color: Color
+    var isSmallText: Bool = false
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(color)
+            
+            Text(value)
+                .font(isSmallText ? .axisTechnical : .system(size: 24, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            
+            Text(title)
+                .font(.axisCaption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    SummaryView()
+        .environmentObject(AppCoordinator())
 }

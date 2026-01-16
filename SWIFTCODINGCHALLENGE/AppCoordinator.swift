@@ -1,87 +1,129 @@
-import SwiftUI
-import AVFoundation
+// AppCoordinator.swift
+// Axis - The Invisible Posture Companion
+// Central State Management for Swift Student Challenge 2026
 
-// THE SINGLE SOURCE OF TRUTH
-// This class controls the entire app flow. It prevents "Misflow" by enforcing strict states.
+import SwiftUI
+import Combine
+
+// MARK: - App State
+enum AppState: Equatable {
+    case idle
+    case setup
+    case alignmentCheck
+    case sessionRunning
+    case summary
+}
+
+// MARK: - App Coordinator
 class AppCoordinator: ObservableObject {
+    // MARK: - Published State
     @Published var appState: AppState = .idle
     @Published var selectedPosture: String = "Sitting"
     @Published var selectedDuration: Double = 3.0
-    
-    // The specific states the app can exist in
-    enum AppState {
-        case idle               // Home Screen
-        case setup              // Choosing Sit/Stand
-        case alignmentCheck     // Camera active
-        case sessionRunning     // Audio/Motion active
-        case summary            // Finished
-    }
-    
-    // MARK: - Transitions (Crash Prevention)
-    
-    func startSetup() {
-        // CLEANUP: Ensure no sensors are running before starting setup
-        stopSensors()
-        withAnimation { appState = .setup }
-    }
-    
-    func cancelSetup() {
-        withAnimation { appState = .idle }
-    }
-    
-    func startAlignment() {
-        // SAFETY: Check Camera Permission before switching state
-        checkCameraPermission { granted in
-            if granted {
-                DispatchQueue.main.async {
-                    withAnimation { self.appState = .alignmentCheck }
-                }
-            } else {
-                // If denied, do nothing (or show alert). DO NOT CRASH.
-                print("Camera permission denied. Staying on Home.")
-            }
+    @Published var isWheelchairUser: Bool = false
+    @Published var hasCompletedOnboarding: Bool {
+        didSet {
+            UserDefaults.standard.set(hasCompletedOnboarding, forKey: "hasCompletedOnboarding")
         }
     }
     
-    func startSession(posture: String, duration: Double) {
-        self.selectedPosture = posture
-        self.selectedDuration = duration
+    // MARK: - Session History
+    @Published var lastSessionDate: Date?
+    @Published var totalSessionsCompleted: Int = 0
+    
+    // MARK: - Initialization
+    init() {
+        hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        totalSessionsCompleted = UserDefaults.standard.integer(forKey: "totalSessionsCompleted")
         
-        // SAFETY: Check Motion Permission
-        // Since we can't strictly "check" motion permission like camera without triggering it,
-        // we start the session state, and the MotionManager handles the fallback internally.
-        withAnimation { appState = .sessionRunning }
+        if let lastDate = UserDefaults.standard.object(forKey: "lastSessionDate") as? Date {
+            lastSessionDate = lastDate
+        }
     }
     
+    // MARK: - Navigation Methods
+    
+    /// Navigate to session setup
+    func startSetup() {
+        appState = .setup
+    }
+    
+    /// Start the actual session with context
+    func startSession(posture: String, duration: Double) {
+        selectedPosture = posture
+        selectedDuration = duration
+        appState = .sessionRunning
+        
+        // Start motion tracking
+        MotionManager.shared.startUpdates()
+    }
+    
+    /// Navigate to alignment check (camera mirror)
+    func showAlignmentCheck() {
+        appState = .alignmentCheck
+    }
+    
+    /// Complete session and show summary
     func completeSession() {
-        stopSensors()
-        withAnimation { appState = .summary }
-    }
-    
-    func returnHome() {
-        stopSensors()
-        withAnimation { appState = .idle }
-    }
-    
-    // MARK: - Helpers
-    
-    private func stopSensors() {
-        // Force kill everything to prevent memory leaks/crashes
+        // Stop sensors
         MotionManager.shared.stopUpdates()
         SpeechManager.shared.stop()
-        AudioManager.shared.stopSynth()
+        
+        // Update stats
+        totalSessionsCompleted += 1
+        lastSessionDate = Date()
+        
+        // Persist
+        UserDefaults.standard.set(totalSessionsCompleted, forKey: "totalSessionsCompleted")
+        UserDefaults.standard.set(lastSessionDate, forKey: "lastSessionDate")
+        
+        // Navigate
+        appState = .summary
     }
     
-    private func checkCameraPermission(completion: @escaping (Bool) -> Void) {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            completion(true)
-        case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                completion(granted)
-            }
-        default:
-            completion(false)
-        }
+    /// Return to home screen
+    func returnHome() {
+        // Stop sensors
+        MotionManager.shared.stopUpdates()
+        SpeechManager.shared.stop()
+        
+        // Navigate
+        appState = .idle
+    }
+    
+    // MARK: - Quick Actions
+    
+    /// Start a quick 2-minute focus session
+    func startQuickSession() {
+        selectedDuration = 2.0
+        selectedPosture = "Sitting"
+        appState = .sessionRunning
+        MotionManager.shared.startUpdates()
+    }
+    
+    /// Start eye relief session
+    func startEyeRelief() {
+        selectedDuration = 3.0
+        selectedPosture = "Sitting"
+        appState = .sessionRunning
+        MotionManager.shared.startUpdates()
+    }
+    
+    // MARK: - State Helpers
+    
+    var isInSession: Bool {
+        appState == .sessionRunning
+    }
+    
+    var canStartSession: Bool {
+        appState == .idle || appState == .setup
+    }
+    
+    var formattedLastSession: String? {
+        guard let date = lastSessionDate else { return nil }
+        
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 }
