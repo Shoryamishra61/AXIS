@@ -33,12 +33,33 @@ class AppCoordinator: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        // Check if user has seen the NEW 3-screen onboarding (v2)
+        // If they only saw v1, reset to show new version
+        let onboardingVersion = UserDefaults.standard.integer(forKey: "onboardingVersion")
+        if onboardingVersion < 2 {
+            // User hasn't seen the new 3-screen narrative, reset onboarding
+            hasCompletedOnboarding = false
+        } else {
+            hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+        }
+        
         totalSessionsCompleted = UserDefaults.standard.integer(forKey: "totalSessionsCompleted")
         
         if let lastDate = UserDefaults.standard.object(forKey: "lastSessionDate") as? Date {
             lastSessionDate = lastDate
         }
+    }
+    
+    /// Mark onboarding as complete (called from OnboardingView)
+    func completeOnboarding() {
+        hasCompletedOnboarding = true
+        UserDefaults.standard.set(2, forKey: "onboardingVersion") // Mark v2 as seen
+    }
+    
+    /// Reset onboarding to show again (for testing/debug)
+    func resetOnboarding() {
+        hasCompletedOnboarding = false
+        UserDefaults.standard.removeObject(forKey: "onboardingVersion")
     }
     
     // MARK: - Navigation Methods
