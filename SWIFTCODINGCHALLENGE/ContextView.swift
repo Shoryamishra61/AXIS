@@ -30,6 +30,9 @@ struct ContextView: View {
                         // Auto-detection banner
                         detectionBanner
                         
+                        // Guidance mode selection (NEW)
+                        GuidanceModeSelector(selectedMode: $coordinator.selectedGuidanceMode)
+                        
                         // Position selection
                         positionSection
                         

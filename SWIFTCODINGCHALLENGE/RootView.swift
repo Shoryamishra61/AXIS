@@ -7,14 +7,22 @@ import SwiftUI
 struct RootView: View {
     @StateObject private var coordinator = AppCoordinator()
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @State private var showSplash: Bool = true
     
     var body: some View {
         ZStack {
             // Global dark background (prevents white flashes)
             AxisColor.backgroundDark.ignoresSafeArea()
             
-            // Check onboarding status
-            if !coordinator.hasCompletedOnboarding {
+            // Check splash and onboarding status
+            if showSplash {
+                SplashScreenView(onComplete: {
+                    withAnimation(.easeOut(duration: 0.5)) {
+                        showSplash = false
+                    }
+                })
+                .transition(.opacity)
+            } else if !coordinator.hasCompletedOnboarding {
                 OnboardingView(hasCompletedOnboarding: $coordinator.hasCompletedOnboarding)
                     .transition(.opacity)
             } else {

@@ -33,6 +33,8 @@ struct SessionView: View {
     
     // Animation
     @State private var showSuccessFlash: Bool = false
+    @State private var showConfetti: Bool = false
+    @State private var showSuccessBurst: Bool = false
     
     // Accessibility
     @Environment(\.accessibilityReduceMotion) var reduceMotion
@@ -98,6 +100,19 @@ struct SessionView: View {
             if showSuccessFlash {
                 successFlashOverlay
             }
+            
+            // Confetti celebration
+            if showConfetti {
+                ConfettiView()
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            }
+            
+            // Success burst effect
+            if showSuccessBurst {
+                SuccessBurstView()
+                    .frame(width: 300, height: 300)
+            }
         }
         .onAppear(perform: startSession)
         .onDisappear(perform: cleanup)
@@ -158,27 +173,22 @@ struct SessionView: View {
             
             Spacer()
             
-            // Main visualizer
+            // Main visualizer (Mode-Adaptive)
             ZStack {
-                LiquidBlobView(
-                    pitch: motion.pitch,
-                    yaw: motion.yaw,
-                    isInTargetZone: isHolding
+                ExerciseVisualizer(
+                    mode: coordinator.selectedGuidanceMode,
+                    exercise: currentExercise,
+                    motion: motion,
+                    isHolding: isHolding,
+                    holdProgress: holdProgress
                 )
-                .frame(width: 320, height: 320)
+                .frame(width: 320, height: 350)
                 
-                // Progress ring when holding
-                if isHolding, let exercise = currentExercise {
-                    Circle()
-                        .trim(from: 0, to: holdProgress)
-                        .stroke(AxisColor.success, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                        .frame(width: 280, height: 280)
-                        .rotationEffect(.degrees(-90))
-                        .animation(.linear(duration: 0.1), value: holdProgress)
-                }
-                
-                // Precision overlay (angle display)
-                if !isHolding, let exercise = currentExercise, exercise.isTracked {
+                // Precision overlay (angle display) for AirPods mode
+                if coordinator.selectedGuidanceMode == .airpods,
+                   !isHolding,
+                   let exercise = currentExercise,
+                   exercise.isTracked {
                     precisionOverlay
                 }
             }
@@ -212,8 +222,11 @@ struct SessionView: View {
             
             Spacer()
             
-            // Progress indicator
+            // Progress indicator with mode badge
             VStack(spacing: 4) {
+                // Mode indicator
+                CompactModeIndicator(mode: coordinator.selectedGuidanceMode)
+                
                 Text("\(currentIndex + 1) / \(routine.count)")
                     .font(.axisTechnical)
                     .foregroundStyle(.secondary)
@@ -225,7 +238,7 @@ struct SessionView: View {
                             .fill(Color.white.opacity(0.1))
                         
                         Capsule()
-                            .fill(AxisColor.primary)
+                            .fill(coordinator.selectedGuidanceMode.accentColor)
                             .frame(width: geo.size.width * progressPercentage)
                     }
                 }
@@ -331,7 +344,7 @@ struct SessionView: View {
     // MARK: - Exercise Info View
     
     private var exerciseInfoView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 16) {
             if let exercise = currentExercise {
                 // Category badge
                 HStack(spacing: 6) {
@@ -356,9 +369,9 @@ struct SessionView: View {
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
-                    .lineLimit(3)
+                    .lineLimit(2)
                 
-                // Success indicator
+                // Success indicator OR next up preview
                 if isHolding {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
@@ -371,10 +384,84 @@ struct SessionView: View {
                     .padding(.vertical, 10)
                     .background(AxisColor.success.opacity(0.15), in: Capsule())
                     .transition(.scale.combined(with: .opacity))
+                } else if currentIndex < routine.count - 1 {
+                    // Next up preview
+                    nextUpPreview
+                }
+                
+                // Skip button for demos (small, subtle)
+                if showChrome {
+                    Button {
+                        skipExercise()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "forward.fill")
+                                .font(.system(size: 10))
+                            Text("Skip")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundColor(AxisColor.textTertiary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.ultraThinMaterial, in: Capsule())
+                    }
+                    .padding(.top, 8)
                 }
             }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHolding)
+    }
+    
+    // MARK: - Next Up Preview
+    
+    private var nextUpPreview: some View {
+        let nextIndex = currentIndex + 1
+        guard nextIndex < routine.count else { return AnyView(EmptyView()) }
+        let nextExercise = routine[nextIndex]
+        
+        return AnyView(
+            HStack(spacing: 8) {
+                Text("NEXT:")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(AxisColor.textTertiary)
+                
+                Image(systemName: nextExercise.category.icon)
+                    .font(.system(size: 12))
+                    .foregroundColor(AxisColor.category(nextExercise.category))
+                
+                Text(nextExercise.name)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(AxisColor.textSecondary)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(.ultraThinMaterial, in: Capsule())
+            .opacity(0.8)
+        )
+    }
+    
+    // MARK: - Skip Exercise
+    
+    private func skipExercise() {
+        AxisHaptic.tick()
+        
+        // Move to next exercise
+        if currentIndex < routine.count - 1 {
+            currentIndex += 1
+            isHolding = false
+            holdProgress = 0.0
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                announceCurrentExercise()
+            }
+        } else {
+            // Session complete
+            showConfetti = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                finishSession()
+            }
+        }
     }
     
     // MARK: - Success Flash Overlay
@@ -514,12 +601,17 @@ struct SessionView: View {
         // Record metrics
         metrics.completeExercise(name: exercise.name, accuracy: currentAccuracy)
         
-        // Success feedback
+        // Success feedback with burst effect
         showSuccessFlash = true
+        showSuccessBurst = true
         AxisHaptic.success()
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             showSuccessFlash = false
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+            showSuccessBurst = false
         }
         
         // Move to next exercise
@@ -533,8 +625,11 @@ struct SessionView: View {
                 announceCurrentExercise()
             }
         } else {
-            // Session complete
-            finishSession()
+            // Session complete - show confetti!
+            showConfetti = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                finishSession()
+            }
         }
     }
     

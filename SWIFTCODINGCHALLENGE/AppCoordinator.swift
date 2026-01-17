@@ -19,7 +19,8 @@ class AppCoordinator: ObservableObject {
     // MARK: - Published State
     @Published var appState: AppState = .idle
     @Published var selectedPosture: String = "Sitting"
-    @Published var selectedDuration: Double = 3.0
+    @Published var selectedDuration: Double = 2.0  // Default 2 min for quick demo
+    @Published var selectedGuidanceMode: GuidanceMode = .airpods
     @Published var isWheelchairUser: Bool = false
     @Published var hasCompletedOnboarding: Bool {
         didSet {

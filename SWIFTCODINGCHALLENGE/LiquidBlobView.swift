@@ -39,9 +39,9 @@ struct LiquidBlobView: View {
         } else if normalizedError < 0.3 {
             return AxisColor.primary
         } else if normalizedError < 0.6 {
-            return AxisColor.warning.opacity(0.8)
+            return AxisColor.warning
         } else {
-            return AxisColor.danger.opacity(0.7)
+            return AxisColor.danger
         }
     }
     
@@ -51,6 +51,11 @@ struct LiquidBlobView: View {
         } else {
             return AxisColor.secondary
         }
+    }
+    
+    // Brightness boost for visibility
+    private var glowOpacity: Double {
+        isInTargetZone ? 0.35 : 0.25
     }
     
     var body: some View {
@@ -99,8 +104,8 @@ struct LiquidBlobView: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            stateColor.opacity(0.25),
-                            stateColor.opacity(0.1),
+                            stateColor.opacity(glowOpacity),
+                            stateColor.opacity(0.15),
                             Color.clear
                         ],
                         center: .center,
