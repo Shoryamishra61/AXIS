@@ -6,6 +6,13 @@ import AVFoundation
 import SwiftUI
 import Combine
 
+// MARK: - Instruction Phase
+enum InstructionPhase {
+    case preparation  // "Place your palm..."
+    case guidance     // "Press gently..."
+    case completion   // "Release..."
+}
+
 // MARK: - Speech Manager
 class SpeechManager: NSObject, ObservableObject {
     static let shared = SpeechManager()
@@ -16,8 +23,11 @@ class SpeechManager: NSObject, ObservableObject {
     
     // MARK: - Voice Configuration
     private var preferredVoice: AVSpeechSynthesisVoice?
-    private var speechRate: Float = 0.48  // Calm, measured pace
-    private var pitchMultiplier: Float = 0.95  // Slightly lower for warmth
+    
+    // Luxury Pacing Configuration
+    private let baseRate: Float = 0.45      // Slower than default (0.5)
+    private let basePitch: Float = 0.9      // Deeper, warmer tone
+    private let baseVolume: Float = 1.0
     
     // MARK: - Initialization
     override init() {
@@ -31,7 +41,7 @@ class SpeechManager: NSObject, ObservableObject {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.duckOthers, .mixWithOthers])
+            try session.setCategory(.playback, mode: .voicePrompt, options: [.duckOthers, .mixWithOthers])
             try session.setActive(true)
         } catch {
             print("Audio session error: \(error)")
@@ -40,30 +50,18 @@ class SpeechManager: NSObject, ObservableObject {
     
     // MARK: - Voice Selection
     private func selectBestVoice() {
-        // Priority order for natural-sounding voices
+        // Priority: Enhanced quality English voices for "luxury" feel
         let preferredNames = [
-            "Samantha (Premium)",  // US Female - Enhanced
-            "Alex (US English)",   // US Male - High quality
-            "Samantha",            // US Female
-            "Daniel",              // UK Male
-            "Karen",               // AU Female
-            "Moira",               // IE Female
-            "Arthur"               // UK Male - Enhanced
+            "Samantha (Premium)",
+            "Ava (Premium)",
+            "Siri", // Often very high quality
+            "Alex",
+            "Samantha"
         ]
         
-        // Get all available voices
         let voices = AVSpeechSynthesisVoice.speechVoices()
         
-        // Try enhanced voices first
-        for voice in voices {
-            if voice.quality == .enhanced && voice.language.starts(with: "en") {
-                preferredVoice = voice
-                print("Selected enhanced voice: \(voice.name)")
-                return
-            }
-        }
-        
-        // Try preferred names
+        // 1. Try to find a specialized premium voice
         for name in preferredNames {
             if let voice = voices.first(where: { $0.name.contains(name) }) {
                 preferredVoice = voice
@@ -72,91 +70,109 @@ class SpeechManager: NSObject, ObservableObject {
             }
         }
         
-        // Final fallback: any English voice
-        preferredVoice = voices.first(where: { $0.language.starts(with: "en") })
-        print("Using fallback voice: \(preferredVoice?.name ?? "default")")
+        // 2. Fallback to any enhanced English voice
+        if let enhanced = voices.first(where: { $0.language.starts(with: "en") && $0.quality == .enhanced }) {
+            preferredVoice = enhanced
+            return
+        }
+        
+        // 3. Default fallback
+        preferredVoice = AVSpeechSynthesisVoice(language: "en-US")
     }
     
-    // MARK: - Speak
+    // MARK: - Primary Speak Methods
+    
+    /// Speak a simple string with luxury settings
     func speak(text: String) {
-        // Stop any current speech
         stop()
-        
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = preferredVoice
-        utterance.rate = speechRate
-        utterance.pitchMultiplier = pitchMultiplier
-        utterance.preUtteranceDelay = 0.2  // Brief pause before speaking
-        utterance.postUtteranceDelay = 0.3  // Brief pause after
-        utterance.volume = 0.9
-        
-        isSpeaking = true
+        configureUtterance(utterance)
         synthesizer.speak(utterance)
+        isSpeaking = true
     }
     
-    // MARK: - Speak with Emphasis
-    func speakWithEmphasis(_ text: String, rate: Float? = nil, pitch: Float? = nil) {
+    /// Speak using SSML for precise control
+    func speakSSML(_ ssmlString: String) {
         stop()
-        
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = preferredVoice
-        utterance.rate = rate ?? speechRate * 0.9  // Slightly slower for emphasis
-        utterance.pitchMultiplier = pitch ?? pitchMultiplier * 1.05
-        utterance.volume = 1.0
-        
-        isSpeaking = true
-        synthesizer.speak(utterance)
+        if let utterance = AVSpeechUtterance(ssmlRepresentation: ssmlString) {
+            utterance.voice = preferredVoice
+            // Note: rate/pitch are often overridden by SSML tags, but we set defaults just in case
+            utterance.rate = baseRate
+            utterance.pitchMultiplier = basePitch
+            utterance.volume = baseVolume
+            
+            synthesizer.speak(utterance)
+            isSpeaking = true
+        } else {
+            // Fallback if SSML parsing fails
+            print("SSML parsing failed, falling back to plain text.")
+            // Strip tags roughly and speak
+            let stripped = ssmlString.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression, range: nil)
+            speak(text: stripped)
+        }
     }
     
-    // MARK: - Speak Countdown
-    func speakCountdown(from number: Int, interval: TimeInterval = 1.0, completion: @escaping () -> Void) {
-        var current = number
+    // MARK: - Multi-Phase Delivery
+    
+    /// Speak a specific phase of an exercise
+    func speakPhase(_ phase: InstructionPhase, from exercise: Exercise) {
+        stop()
         
-        func speakNext() {
-            if current > 0 {
-                speak(text: "\(current)")
-                current -= 1
-                DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
-                    speakNext()
-                }
+        var content = ""
+        
+        switch phase {
+        case .preparation:
+            // "Let's get ready..." tone
+            content = formatLuxurySSML(exercise.preparation, rate: "95%", volume: "medium")
+            
+        case .guidance:
+            // The main "Velvet" instruction
+            // Combine the calming instruction or the guidance steps
+            // For the main phase, we prioritize the rich `calmingInstruction` if available,
+            // or perform the sequence of `voiceGuidance`
+            
+            if !exercise.calmingInstruction.isEmpty {
+                content = formatLuxurySSML(exercise.calmingInstruction)
             } else {
-                completion()
+                // Construct from array
+                let steps = exercise.voiceGuidance.joined(separator: " <break time=\"1.0s\"/> ")
+                content = formatLuxurySSML(steps)
             }
+            
+        case .completion:
+            // "And relax..." tone
+            content = formatLuxurySSML(exercise.completion, rate: "90%", pitch: "-5%")
         }
         
-        speakNext()
+        speakSSML(content)
     }
     
-    // MARK: - Speak Success
-    func speakSuccess() {
-        let phrases = [
-            "Perfect.",
-            "Well done.",
-            "Excellent.",
-            "That's it.",
-            "Great work."
-        ]
-        
-        if let phrase = phrases.randomElement() {
-            speakWithEmphasis(phrase, rate: speechRate * 0.85)
-        }
+    /// Play the full sequence of voice guidance tags
+    func speakGuidanceSequence(_ steps: [String]) {
+        stop()
+        // Join with significant pauses
+        let combined = steps.joined(separator: " <break time=\"2.0s\"/> ")
+        let ssml = formatLuxurySSML(combined)
+        speakSSML(ssml)
     }
     
-    // MARK: - Speak Encouragement
-    func speakEncouragement() {
-        let phrases = [
-            "Keep going.",
-            "Almost there.",
-            "You're doing well.",
-            "Stay with it."
-        ]
-        
-        if let phrase = phrases.randomElement() {
-            speak(text: phrase)
-        }
+    // MARK: - SSML Helper
+    
+    /// Wraps text in standard "Axis Luxury" SSML tags
+    private func formatLuxurySSML(_ text: String, rate: String = "90%", pitch: String = "default", volume: String = "loud") -> String {
+        return """
+        <speak>
+            <voice name="\(preferredVoice?.identifier ?? "com.apple.ttsbundle.Samantha-compact")">
+                <prosody rate="\(rate)" pitch="\(pitch)" volume="\(volume)">
+                    \(text)
+                </prosody>
+            </voice>
+        </speak>
+        """
     }
     
-    // MARK: - Stop
+    // MARK: - Utility
+    
     func stop() {
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
@@ -164,18 +180,32 @@ class SpeechManager: NSObject, ObservableObject {
         isSpeaking = false
     }
     
-    // MARK: - Adjust Settings
-    func setRate(_ rate: Float) {
-        speechRate = max(0.3, min(0.6, rate))
+    private func configureUtterance(_ utterance: AVSpeechUtterance) {
+        utterance.voice = preferredVoice
+        utterance.rate = baseRate
+        utterance.pitchMultiplier = basePitch
+        utterance.volume = baseVolume
+        utterance.preUtteranceDelay = 0.1
+        utterance.postUtteranceDelay = 0.1
     }
     
-    func setPitch(_ pitch: Float) {
-        pitchMultiplier = max(0.8, min(1.2, pitch))
+    // MARK: - Feedback Sounds
+    
+    func speakSuccess() {
+        // Short, encouraging, slightly higher pitch for energy
+        let phrases = ["Perfect", "There it is", "Good", "Release"]
+        if let phrase = phrases.randomElement() {
+             let utterance = AVSpeechUtterance(string: phrase)
+             utterance.voice = preferredVoice
+             utterance.rate = baseRate
+             utterance.pitchMultiplier = basePitch * 1.1 // Slightly brighter
+             utterance.volume = 0.8
+             synthesizer.speak(utterance)
+        }
     }
 }
 
 // MARK: - Delegate
-
 extension SpeechManager: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         DispatchQueue.main.async {

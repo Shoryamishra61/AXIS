@@ -89,19 +89,30 @@ struct Exercise: Identifiable, Codable {
     let id: String
     let name: String
     let category: ExerciseCategory
-    let instruction: String
-    let calmingInstruction: String  // Softer version for voice
+    
+    // MARK: - Voice Instructions (Luxury Multi-Phase Guidance)
+    let instruction: String           // Short, action-oriented instruction
+    let calmingInstruction: String    // Full sensory guidance during exercise
+    let preparation: String           // What to do before starting
+    let voiceGuidance: [String]       // Array of progressive coaching cues
+    let completion: String            // Transition to next exercise
+    
+    // MARK: - Tracking Configuration
     let trackingType: TrackingType
     let targetAxis: TargetAxis
-    let targetValue: Double         // Target angle in degrees
-    let holdDuration: TimeInterval  // How long to hold at target
-    let totalDuration: TimeInterval // Total exercise duration
-    let tolerance: Double           // Acceptable deviation (±degrees)
+    let targetValue: Double           // Target angle in degrees
+    let holdDuration: TimeInterval    // How long to hold at target
+    let totalDuration: TimeInterval   // Total exercise duration
+    let tolerance: Double             // Acceptable deviation (±degrees)
     let supportedContexts: [PostureContext]
-    let difficultyLevel: Int        // 1-3: Beginner, Intermediate, Advanced
-    let reps: Int                   // Number of repetitions (1 for single hold)
+    let difficultyLevel: Int          // 1-3: Beginner, Intermediate, Advanced
+    let reps: Int                     // Number of repetitions (1 for single hold)
     
-    // Computed Properties
+    // MARK: - Evidence & Benefits
+    let primaryBenefit: String
+    let scientificRationale: String
+    
+    // MARK: - Computed Properties
     var isTracked: Bool {
         trackingType == .sensorTracked || trackingType == .pattern
     }
