@@ -2,6 +2,8 @@
 // Axis - The Invisible Posture Companion
 // Alignment Mirror with Body Pose Detection for Swift Student Challenge 2026
 
+// NOTE: NSCameraUsageDescription must be present in Info.plist for camera access permission.
+
 import SwiftUI
 import AVFoundation
 import Vision
@@ -17,9 +19,29 @@ struct CameraView: View {
     
     var body: some View {
         ZStack {
-            // Camera preview
-            CameraPreviewLayer(session: cameraController.session)
-                .ignoresSafeArea()
+            // Camera preview or permission prompt
+            Group {
+                if cameraController.authorized {
+                    CameraPreviewLayer(session: cameraController.session)
+                        .ignoresSafeArea()
+                } else {
+                    VStack(spacing: 12) {
+                        Text("Camera access is required to show the alignment mirror.")
+                            .font(.axisInstruction)
+                            .foregroundStyle(.secondary)
+                        Text("Enable it in Settings > Privacy > Camera")
+                            .font(.axisCaption)
+                            .foregroundStyle(.tertiary)
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding()
+                }
+            }
             
             // Pose overlay
             if showPoseOverlay, let pose = cameraController.detectedPose {
@@ -44,7 +66,10 @@ struct CameraView: View {
             }
         }
         .onAppear {
-            cameraController.startSession()
+            if cameraController.authorized { cameraController.startSession() }
+        }
+        .onChange(of: cameraController.authorized) { isAuthorized in
+            if isAuthorized { cameraController.startSession() } else { cameraController.stopSession() }
         }
         .onDisappear {
             cameraController.stopSession()
@@ -274,54 +299,103 @@ struct DetectedPose: Equatable {
 class CameraController: NSObject, ObservableObject {
     let session = AVCaptureSession()
     @Published var detectedPose: DetectedPose?
+    @Published var authorized: Bool = false
     
     private let poseRequest = VNDetectHumanBodyPoseRequest()
     private var videoOutput: AVCaptureVideoDataOutput?
+    private let sessionQueue = DispatchQueue(label: "camera.session.queue")
     
     override init() {
         super.init()
-        setupCamera()
+        checkPermission()
+    }
+    
+    private func checkPermission() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            DispatchQueue.main.async { self.authorized = true }
+            setupCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async { self.authorized = granted }
+                if granted { self.setupCamera() }
+            }
+        default:
+            DispatchQueue.main.async { self.authorized = false }
+            break
+        }
     }
     
     private func setupCamera() {
-        session.sessionPreset = .high
-        
-        // Get front camera
-        guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
-            print("Front camera not available")
-            return
-        }
-        
-        do {
-            let input = try AVCaptureDeviceInput(device: camera)
-            if session.canAddInput(input) {
-                session.addInput(input)
+        sessionQueue.async {
+            self.session.beginConfiguration()
+            self.session.sessionPreset = .high
+
+            // Get front camera
+            guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
+                print("Front camera not available")
+                self.session.commitConfiguration()
+                return
             }
-            
-            // Video output for Vision processing
-            let output = AVCaptureVideoDataOutput()
-            output.alwaysDiscardsLateVideoFrames = true
-            output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "pose.detection"))
-            
-            if session.canAddOutput(output) {
-                session.addOutput(output)
+
+            do {
+                let input = try AVCaptureDeviceInput(device: camera)
+                if self.session.canAddInput(input) {
+                    self.session.addInput(input)
+                } else {
+                    print("Cannot add camera input")
+                }
+
+                // Video output for Vision processing
+                let output = AVCaptureVideoDataOutput()
+                output.alwaysDiscardsLateVideoFrames = true
+                output.setSampleBufferDelegate(self, queue: DispatchQueue(label: "pose.detection"))
+
+                if self.session.canAddOutput(output) {
+                    self.session.addOutput(output)
+                } else {
+                    print("Cannot add video output")
+                }
+                self.videoOutput = output
+
+                if let connection = output.connection(with: .video) {
+                    if connection.isVideoOrientationSupported { connection.videoOrientation = .portrait }
+                    if connection.isVideoMirroringSupported {
+                        connection.automaticallyAdjustsVideoMirroring = false
+                        connection.isVideoMirrored = true
+                    }
+                }
+            } catch {
+                print("Camera setup error: \(error)")
             }
-            videoOutput = output
-            
-        } catch {
-            print("Camera setup error: \(error)")
+
+            self.session.commitConfiguration()
         }
     }
     
     func startSession() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.session.startRunning()
+        sessionQueue.async { [weak self] in
+            guard let self = self, self.authorized else { return }
+            if !self.session.isRunning {
+                NotificationCenter.default.addObserver(self, selector: #selector(self.sessionRuntimeError(_:)), name: .AVCaptureSessionRuntimeError, object: self.session)
+                self.session.startRunning()
+            }
         }
     }
     
     func stopSession() {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.session.stopRunning()
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            if self.session.isRunning { self.session.stopRunning() }
+            NotificationCenter.default.removeObserver(self, name: .AVCaptureSessionRuntimeError, object: self.session)
+        }
+    }
+    
+    @objc private func sessionRuntimeError(_ notification: Notification) {
+        if let error = notification.userInfo?[AVCaptureSessionErrorKey] as? AVError {
+            print("AVCaptureSession runtime error: \(error)")
+        } else {
+            print("AVCaptureSession runtime error occurred")
         }
     }
 }
@@ -375,23 +449,32 @@ struct CameraPreviewLayer: UIViewRepresentable {
     
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
+        view.backgroundColor = .black
         
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = UIScreen.main.bounds
+        // previewLayer.frame = UIScreen.main.bounds  // removed per instructions
         
         // Mirror for front camera
         previewLayer.connection?.automaticallyAdjustsVideoMirroring = false
         previewLayer.connection?.isVideoMirrored = true
         
         view.layer.addSublayer(previewLayer)
+        previewLayer.frame = view.bounds
         
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
         if let previewLayer = uiView.layer.sublayers?.first as? AVCaptureVideoPreviewLayer {
-            previewLayer.frame = UIScreen.main.bounds
+            previewLayer.frame = uiView.bounds
+            if let connection = previewLayer.connection, connection.isVideoOrientationSupported {
+                connection.videoOrientation = .portrait
+                if connection.isVideoMirroringSupported {
+                    connection.automaticallyAdjustsVideoMirroring = false
+                    connection.isVideoMirrored = true
+                }
+            }
         }
     }
 }
@@ -445,4 +528,3 @@ struct PoseOverlayView: View {
         context.fill(Path(ellipseIn: rect), with: .color(color))
     }
 }
-

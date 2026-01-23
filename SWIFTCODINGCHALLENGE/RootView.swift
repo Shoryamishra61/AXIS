@@ -12,7 +12,7 @@ struct RootView: View {
     var body: some View {
         ZStack {
             // Global dark background (prevents white flashes)
-            AxisColor.backgroundDark.ignoresSafeArea()
+            Color.black.ignoresSafeArea()
             
             // Check splash and onboarding status
             if showSplash {
@@ -65,3 +65,4 @@ struct RootView: View {
         }
     }
 }
+

@@ -73,6 +73,9 @@ struct AxisColor {
     /// Elevated layer - Modals, popovers
     static let elevated = Color(red: 0.16, green: 0.16, blue: 0.22) // #2A2A38
     
+    /// Darker background for overlays and fades
+    static let backgroundDark = Color(red: 0.02, green: 0.02, blue: 0.03) // #050508
+    
     // MARK: - Text Hierarchy (WCAG AAA: 7:1 ratio)
     
     static let textPrimary = Color.white                    // 21:1 ratio
@@ -556,3 +559,4 @@ extension Color {
     .padding()
     .background(AxisColor.backgroundGradient)
 }
+
