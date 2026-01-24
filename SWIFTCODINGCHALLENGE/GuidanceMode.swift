@@ -88,7 +88,9 @@ struct GuidanceModeSelector: View {
     
     private func modeCard(_ mode: GuidanceMode) -> some View {
         let isSelected = selectedMode == mode
-        let isAvailable = !mode.requiresSensor || motion.isConnected
+        // Use HONEST AirPods detection - only show as available if actually connected
+        let isAirPodsAvailable = motion.isAirPodsActuallyConnected
+        let isAvailable = !mode.requiresSensor || isAirPodsAvailable
         
         return Button {
             guard isAvailable else { return }
@@ -114,8 +116,8 @@ struct GuidanceModeSelector: View {
                             .font(.axisButton)
                             .foregroundColor(isSelected ? AxisColor.textPrimary : AxisColor.textSecondary)
                         
-                        // Recommended badge for AirPods
-                        if mode == .airpods && motion.isConnected {
+                        // Recommended badge - ONLY show if AirPods actually connected
+                        if mode == .airpods && isAirPodsAvailable {
                             Text("BEST")
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundColor(.black)
@@ -124,8 +126,8 @@ struct GuidanceModeSelector: View {
                                 .background(AxisColor.primary, in: Capsule())
                         }
                         
-                        // Unavailable indicator
-                        if mode.requiresSensor && !motion.isConnected {
+                        // Unavailable indicator - honest status
+                        if mode.requiresSensor && !isAirPodsAvailable {
                             Text("CONNECT AIRPODS")
                                 .font(.system(size: 9, weight: .medium))
                                 .foregroundColor(AxisColor.textTertiary)

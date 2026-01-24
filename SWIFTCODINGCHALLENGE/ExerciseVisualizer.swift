@@ -3,6 +3,7 @@
 // Mode-Adaptive Exercise Visualization for Swift Student Challenge 2026
 
 import SwiftUI
+import AVFoundation
 
 // MARK: - Exercise Visualizer (Mode-Adaptive)
 
@@ -12,6 +13,9 @@ struct ExerciseVisualizer: View {
     let motion: MotionManager
     let isHolding: Bool
     let holdProgress: Double
+    
+    // Camera controller for camera mode
+    @StateObject private var cameraController = CameraController()
     
     @Environment(\.accessibilityReduceMotion) var reduceMotion
     
@@ -148,58 +152,72 @@ struct ExerciseVisualizer: View {
     
     private var cameraVisualizer: some View {
         ZStack {
-            // Skeleton silhouette
-            GeometryReader { geo in
-                // Head outline
-                Circle()
-                    .stroke(
-                        isHolding ? AxisColor.success : AxisColor.secondary,
-                        lineWidth: 3
-                    )
-                    .frame(width: 80, height: 80)
-                    .position(x: geo.size.width / 2, y: 60)
-                
-                // Neck line
-                Path { path in
-                    path.move(to: CGPoint(x: geo.size.width / 2, y: 100))
-                    path.addLine(to: CGPoint(x: geo.size.width / 2, y: 160))
+            // Real camera preview
+            Group {
+                if cameraController.authorized {
+                    // Actual camera feed
+                    CameraPreviewLayer(session: cameraController.session)
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(isHolding ? AxisColor.success : AxisColor.secondary, lineWidth: 3)
+                        )
+                    
+                    // Pose overlay on top of camera
+                    if let pose = cameraController.detectedPose {
+                        PoseOverlayView(pose: pose)
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                    }
+                    
+                    // Alignment guide (center line)
+                    GeometryReader { geo in
+                        Path { path in
+                            path.move(to: CGPoint(x: geo.size.width / 2, y: 0))
+                            path.addLine(to: CGPoint(x: geo.size.width / 2, y: geo.size.height))
+                        }
+                        .stroke(style: StrokeStyle(lineWidth: 1, dash: [8, 4]))
+                        .foregroundStyle(AxisColor.primary.opacity(0.5))
+                    }
+                } else {
+                    // Camera not authorized - show prompt
+                    VStack(spacing: 16) {
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(AxisColor.secondary)
+                        
+                        Text("Camera Access Required")
+                            .font(.axisButton)
+                            .foregroundColor(AxisColor.textPrimary)
+                        
+                        Text("Enable camera to use pose detection")
+                            .font(.axisCaption)
+                            .foregroundColor(AxisColor.textSecondary)
+                        
+                        Button("Open Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        .font(.axisButton)
+                        .foregroundColor(.black)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(AxisColor.primary, in: Capsule())
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 20))
                 }
-                .stroke(
-                    isHolding ? AxisColor.success : AxisColor.secondary,
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                
-                // Shoulders
-                Path { path in
-                    path.move(to: CGPoint(x: geo.size.width / 2 - 80, y: 160))
-                    path.addLine(to: CGPoint(x: geo.size.width / 2 + 80, y: 160))
-                }
-                .stroke(
-                    isHolding ? AxisColor.success : AxisColor.secondary,
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                
-                // Alignment guides
-                Path { path in
-                    path.move(to: CGPoint(x: geo.size.width / 2, y: 20))
-                    path.addLine(to: CGPoint(x: geo.size.width / 2, y: 200))
-                }
-                .stroke(
-                    style: StrokeStyle(lineWidth: 1, dash: [8, 4])
-                )
-                .foregroundStyle(AxisColor.primary.opacity(0.4))
             }
-            .frame(width: 280, height: 280)
             
-            // Camera badge
+            // Camera status badge
             VStack {
                 HStack(spacing: 6) {
                     Circle()
-                        .fill(Color.red)
+                        .fill(cameraController.authorized ? Color.green : Color.red)
                         .frame(width: 8, height: 8)
-                    Text("POSE DETECTION")
+                    Text(cameraController.authorized ? "LIVE" : "CAMERA OFF")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(AxisColor.secondary)
+                        .foregroundColor(cameraController.authorized ? .green : AxisColor.textSecondary)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
@@ -209,7 +227,7 @@ struct ExerciseVisualizer: View {
             }
             .frame(height: 350)
             
-            // Progress overlay
+            // Progress overlay when holding
             if isHolding {
                 Circle()
                     .trim(from: 0, to: holdProgress)
@@ -217,6 +235,16 @@ struct ExerciseVisualizer: View {
                     .frame(width: 260, height: 260)
                     .rotationEffect(.degrees(-90))
             }
+        }
+        .onAppear {
+            // Start camera when view appears
+            if cameraController.authorized {
+                cameraController.startSession()
+            }
+        }
+        .onDisappear {
+            // Stop camera when view disappears
+            cameraController.stopSession()
         }
     }
     

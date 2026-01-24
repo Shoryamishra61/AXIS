@@ -88,6 +88,17 @@ struct ContextView: View {
         .onDisappear {
             activity.stopActivityDetection()
         }
+        // Enforce Standing/Wheelchair mutual exclusivity
+        .onChange(of: selectedPosition) { newPosition in
+            if newPosition == "Standing" && coordinator.isWheelchairUser {
+                coordinator.isWheelchairUser = false
+            }
+        }
+        .onChange(of: coordinator.isWheelchairUser) { isWheelchair in
+            if isWheelchair && selectedPosition == "Standing" {
+                selectedPosition = "Sitting"
+            }
+        }
     }
     
     // MARK: - Detection Banner
@@ -196,16 +207,19 @@ struct ContextView: View {
     // MARK: - Wheelchair Toggle
     
     private var wheelchairToggle: some View {
-        HStack(spacing: 16) {
+        let isStanding = selectedPosition == "Standing"
+        
+        return HStack(spacing: 16) {
             Image(systemName: "figure.roll")
                 .font(.title2)
                 .foregroundStyle(coordinator.isWheelchairUser ? AxisColor.primary : .secondary)
+                .opacity(isStanding ? 0.4 : 1.0)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text("Wheelchair Mode")
                     .font(.axisButton)
-                    .foregroundStyle(.primary)
-                Text("Optimizes calibration and exercises for seated mobility.")
+                    .foregroundStyle(isStanding ? .secondary : .primary)
+                Text(isStanding ? "Not available when standing" : "Optimizes calibration and exercises for seated mobility.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -215,11 +229,12 @@ struct ContextView: View {
             Toggle("", isOn: $coordinator.isWheelchairUser)
                 .tint(AxisColor.primary)
                 .labelsHidden()
+                .disabled(isStanding)
         }
         .padding(16)
         .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Wheelchair Mode. \(coordinator.isWheelchairUser ? "On" : "Off")")
+        .accessibilityLabel("Wheelchair Mode. \(coordinator.isWheelchairUser ? "On" : "Off")\(isStanding ? ". Not available when standing" : "")")
     }
     
     // MARK: - Session Preview

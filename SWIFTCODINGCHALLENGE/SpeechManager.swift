@@ -24,9 +24,9 @@ class SpeechManager: NSObject, ObservableObject {
     // MARK: - Voice Configuration
     private var preferredVoice: AVSpeechSynthesisVoice?
     
-    // Luxury Pacing Configuration
-    private let baseRate: Float = 0.45      // Slower than default (0.5)
-    private let basePitch: Float = 0.9      // Deeper, warmer tone
+    // Luxury Pacing Configuration - faster for a snappier feel
+    private let baseRate: Float = 0.52      // Faster than before for concise guidance
+    private let basePitch: Float = 0.95     // Slightly warmer tone
     private let baseVolume: Float = 1.0
     
     // MARK: - Initialization

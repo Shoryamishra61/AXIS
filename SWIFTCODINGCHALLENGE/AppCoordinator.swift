@@ -20,7 +20,7 @@ class AppCoordinator: ObservableObject {
     @Published var appState: AppState = .idle
     @Published var selectedPosture: String = "Sitting"
     @Published var selectedDuration: Double = 2.0  // Default 2 min for quick demo
-    @Published var selectedGuidanceMode: GuidanceMode = .airpods
+    @Published var selectedGuidanceMode: GuidanceMode = .audioOnly  // Default to audio since it always works
     @Published var isWheelchairUser: Bool = false
     @Published var hasCompletedOnboarding: Bool {
         didSet {

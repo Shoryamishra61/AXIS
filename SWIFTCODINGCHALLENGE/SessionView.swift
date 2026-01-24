@@ -523,7 +523,8 @@ struct SessionView: View {
     
     private func announceCurrentExercise() {
         guard !isMuted, let exercise = currentExercise else { return }
-        SpeechManager.shared.speak(text: exercise.calmingInstruction)
+        // Use SHORT instruction for concise guidance instead of verbose calmingInstruction
+        SpeechManager.shared.speak(text: exercise.instruction)
     }
     
     private func checkProgress() {

@@ -24,6 +24,11 @@ class MotionManager: ObservableObject {
     @Published var isCalibrated: Bool = false
     @Published var connectionQuality: ConnectionQuality = .unknown
     
+    /// Returns true ONLY if AirPods with motion sensors are actually connected and available
+    var isAirPodsActuallyConnected: Bool {
+        return headphoneManager.isDeviceMotionAvailable
+    }
+    
     // MARK: - Calibration State
     private var referenceQuaternion: CMQuaternion?
     private var calibrationAttempts: Int = 0
