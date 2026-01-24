@@ -227,12 +227,12 @@ struct LiquidBlobView: View {
                 context.addFilter(.blur(radius: 12))
                 context.fill(blobPath, with: .color(stateColor.opacity(0.6)))
                 
-                // Layer C: Main fill with gradient
+                // Layer C: Main fill with gradient (Glass Effect)
                 context.addFilter(.blur(radius: 0))
                 let gradient = Gradient(colors: [
-                    stateColor.opacity(0.95),
-                    secondaryColor.opacity(0.85),
-                    stateColor.opacity(0.75)
+                    stateColor.opacity(0.60), // Reduced from 0.95
+                    secondaryColor.opacity(0.50), // Reduced from 0.85
+                    stateColor.opacity(0.40) // Reduced from 0.75
                 ])
                 context.fill(blobPath, with: .radialGradient(
                     gradient,

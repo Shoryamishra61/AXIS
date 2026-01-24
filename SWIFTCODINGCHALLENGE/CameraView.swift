@@ -331,9 +331,17 @@ class CameraController: NSObject, ObservableObject {
             self.session.beginConfiguration()
             self.session.sessionPreset = .high
 
-            // Get front camera
-            guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front) else {
+            // Robust Camera Discovery (Fixes "No Camera" bugs)
+            // Searches for TrueDepth (FaceID), Dual, or Wide cameras
+            let discovery = AVCaptureDevice.DiscoverySession(
+                deviceTypes: [.builtInTrueDepthCamera, .builtInDualCamera, .builtInWideAngleCamera],
+                mediaType: .video,
+                position: .front
+            )
+            
+            guard let camera = discovery.devices.first else {
                 print("Front camera not available")
+                DispatchQueue.main.async { self.authorized = false } // Downgrade auth if HW missing
                 self.session.commitConfiguration()
                 return
             }

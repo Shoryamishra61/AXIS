@@ -178,3 +178,40 @@ extension Exercise {
         }
     }
 }
+
+// MARK: - Exercise Flattening (Architecture Fix)
+extension Exercise {
+    /// Decomposes a multi-rep exercise into individual single-rep sequences.
+    /// This ensures the session timer loops correctly for every repetition.
+    func flatten() -> [Exercise] {
+        guard reps > 1 else { return [self] }
+        
+        var flattened: [Exercise] = []
+        for i in 1...reps {
+            let suffix = " (\(i)/\(reps))"
+            let newEx = Exercise(
+                id: "\(id)_rep_\(i)",
+                name: reps <= 1 ? name : "\(name)\(suffix)",
+                category: category,
+                instruction: instruction,
+                calmingInstruction: calmingInstruction, // Conserve narrative
+                preparation: i == 1 ? preparation : "Prepare for next repetition.",
+                voiceGuidance: voiceGuidance,
+                completion: i == reps ? completion : "Release and reset.",
+                trackingType: trackingType,
+                targetAxis: targetAxis,
+                targetValue: targetValue,
+                holdDuration: holdDuration,
+                totalDuration: holdDuration, // Adjusted to per-rep duration
+                tolerance: tolerance,
+                supportedContexts: supportedContexts,
+                difficultyLevel: difficultyLevel,
+                reps: 1, // Normalized
+                primaryBenefit: primaryBenefit,
+                scientificRationale: scientificRationale
+            )
+            flattened.append(newEx)
+        }
+        return flattened
+    }
+}

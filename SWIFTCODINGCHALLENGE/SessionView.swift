@@ -523,15 +523,26 @@ struct SessionView: View {
     
     private func announceCurrentExercise() {
         guard !isMuted, let exercise = currentExercise else { return }
-        // Use SHORT instruction for concise guidance instead of verbose calmingInstruction
-        SpeechManager.shared.speak(text: exercise.instruction)
+        // Use calmingInstruction for premium, sensory guidance
+        // This solves User Point 14 (Robot Voice) and 26 (Bad Text)
+        SpeechManager.shared.speakCoaching(exercise.calmingInstruction)
+        
+        // Also ensure simple instruction is shown on screen via binding (handled by visualizer)
     }
     
     private func checkProgress() {
         guard isViewActive, !isCalibrating, !isHolding else { return }
         guard let exercise = currentExercise else { return }
         
-        // Calculate accuracy
+        // Mode-Adaptive Logic (Fixes Point 10 & 23)
+        // Camera & Audio modes act as "Timed/Guided" sessions without strict sensor gating
+        if coordinator.selectedGuidanceMode == .camera || coordinator.selectedGuidanceMode == .audioOnly {
+            currentAccuracy = 1.0 // Assume user is following along
+            enterHoldState()      // Immediately start the timer
+            return
+        }
+        
+        // AirPods Mode: Strict Sensor Logic (Premium Feature)
         currentAccuracy = exercise.calculateAccuracy(currentValue: currentSensorValue)
         
         // Check if at target

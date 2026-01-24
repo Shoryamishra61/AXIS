@@ -1697,7 +1697,7 @@ struct ExerciseTimeMapper {
         
         for ex in neckExercises {
             if timeUsed + ex.totalDuration <= seconds {
-                selected.append(ex)
+                selected.append(contentsOf: ex.flatten())
                 timeUsed += ex.totalDuration
             }
         }
@@ -1705,7 +1705,7 @@ struct ExerciseTimeMapper {
         // Add breathing if time permits
         if let breathing = pool.first(where: { $0.category == .breathwork }) {
             if timeUsed + breathing.totalDuration <= seconds {
-                selected.append(breathing)
+                selected.append(contentsOf: breathing.flatten())
             }
         }
         
@@ -1719,7 +1719,7 @@ struct ExerciseTimeMapper {
         
         // Warmup: 1 neck mobility
         if let warmup = pool.first(where: { $0.category == .neckMobility && $0.difficultyLevel == 1 }) {
-            selected.append(warmup)
+            selected.append(contentsOf: warmup.flatten())
             timeUsed += warmup.totalDuration
         }
         
@@ -1729,7 +1729,7 @@ struct ExerciseTimeMapper {
         
         for ex in shoulderWork {
             if timeUsed + ex.totalDuration <= seconds {
-                selected.append(ex)
+                selected.append(contentsOf: ex.flatten())
                 timeUsed += ex.totalDuration
             }
         }
@@ -1737,7 +1737,7 @@ struct ExerciseTimeMapper {
         // Cooldown: Breathing
         if let cooldown = pool.first(where: { $0.category == .breathwork }) {
             if timeUsed + cooldown.totalDuration <= seconds {
-                selected.append(cooldown)
+                selected.append(contentsOf: cooldown.flatten())
             }
         }
         
@@ -1758,7 +1758,7 @@ struct ExerciseTimeMapper {
         
         for category in sequence {
             if let ex = pool.first(where: { $0.category == category && (timeUsed + $0.totalDuration) <= seconds }) {
-                selected.append(ex)
+                selected.append(contentsOf: ex.flatten())
                 timeUsed += ex.totalDuration
             }
         }
@@ -1782,7 +1782,7 @@ struct ExerciseTimeMapper {
         
         for category in categories {
             if let ex = pool.first(where: { $0.category == category && (timeUsed + $0.totalDuration) <= seconds }) {
-                selected.append(ex)
+                selected.append(contentsOf: ex.flatten())
                 timeUsed += ex.totalDuration
             }
         }
@@ -1810,7 +1810,7 @@ struct ExerciseTimeMapper {
             let exercises = pool.filter { $0.category == category }
             
             if let ex = exercises.first(where: { (timeUsed + $0.totalDuration) <= seconds }) {
-                  selected.append(ex)
+                  selected.append(contentsOf: ex.flatten())
                   timeUsed += ex.totalDuration
             }
         }

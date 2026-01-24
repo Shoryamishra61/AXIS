@@ -6,7 +6,8 @@ import SwiftUI
 
 struct ContextView: View {
     @EnvironmentObject var coordinator: AppCoordinator
-    @StateObject private var activity = ActivityManager()
+    @EnvironmentObject var coordinator: AppCoordinator
+
     
     @State private var selectedPosition = "Sitting"
     @State private var selectedDuration = 3.0
@@ -27,8 +28,7 @@ struct ContextView: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 28) {
-                        // Auto-detection banner
-                        detectionBanner
+
                         
                         // Guidance mode selection (NEW)
                         GuidanceModeSelector(selectedMode: $coordinator.selectedGuidanceMode)
@@ -81,12 +81,6 @@ struct ContextView: View {
                 }
             }
         }
-        .onAppear {
-            activity.startActivityDetection()
-            selectedPosition = activity.detectedContext
-        }
-        .onDisappear {
-            activity.stopActivityDetection()
         }
         // Enforce Standing/Wheelchair mutual exclusivity
         .onChange(of: selectedPosition) { newPosition in
@@ -101,44 +95,8 @@ struct ContextView: View {
         }
     }
     
-    // MARK: - Detection Banner
-    
-    private var detectionBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "sparkles")
-                .font(.title3)
-                .foregroundStyle(AxisColor.primary)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Auto-Detected")
-                    .font(.axisCaption)
-                    .foregroundStyle(.secondary)
-                Text(activity.detectedContext.uppercased())
-                    .font(.axisTechnical)
-                    .foregroundStyle(AxisColor.primary)
-            }
-            
-            Spacer()
-            
-            Button {
-                selectedPosition = activity.detectedContext
-                AxisHaptic.tick()
-            } label: {
-                Text("Use")
-                    .font(.axisTechnical)
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
-            }
-        }
-        .padding(16)
-        .background(AxisColor.primary.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(AxisColor.primary.opacity(0.3), lineWidth: 1)
-        )
-    }
+    // MARK: - Detection Banner Removed
+
     
     // MARK: - Position Section
     

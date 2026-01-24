@@ -24,9 +24,15 @@ class MotionManager: ObservableObject {
     @Published var isCalibrated: Bool = false
     @Published var connectionQuality: ConnectionQuality = .unknown
     
-    /// Returns true ONLY if AirPods with motion sensors are actually connected and available
+    // MARK: - Data Freshness Tracking
+    private var lastDataTimestamp: Date = Date.distantPast
+    private let dataFreshnessThreshold: TimeInterval = 1.0 // Data older than 1s is stale
+    
+    /// Returns true ONLY if AirPods with motion sensors are connected AND sending active data
     var isAirPodsActuallyConnected: Bool {
-        return headphoneManager.isDeviceMotionAvailable
+        return headphoneManager.isDeviceMotionAvailable && 
+               headphoneManager.isDeviceMotionActive &&
+               Date().timeIntervalSince(lastDataTimestamp) < dataFreshnessThreshold
     }
     
     // MARK: - Calibration State
@@ -68,12 +74,14 @@ class MotionManager: ObservableObject {
     
     /// Start monitoring for sensor availability changes (call on app appear)
     func startConnectionMonitoring() {
-        // Check immediately
-        checkSensorAvailability()
+        // Start updates immediately to verify data flow
+        if headphoneManager.isDeviceMotionAvailable {
+            startHeadphoneUpdates() 
+        }
         
-        // Then poll every 2 seconds for connection changes
+        // Then poll every 1 second for connection verification
         connectionMonitorTimer?.invalidate()
-        connectionMonitorTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+        connectionMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.checkSensorAvailability()
         }
     }
@@ -82,21 +90,30 @@ class MotionManager: ObservableObject {
     func stopConnectionMonitoring() {
         connectionMonitorTimer?.invalidate()
         connectionMonitorTimer = nil
+        // Don't stop updates here, as session might need them, 
+        // but typically monitoring is for the home screen/setup.
     }
     
     private func checkSensorAvailability() {
-        let isHeadphoneNowAvailable = headphoneManager.isDeviceMotionAvailable
+        // Enforce strict check
+        let honestConnection = isAirPodsActuallyConnected
         
-        // Detect connection change
-        if isHeadphoneNowAvailable && !wasHeadphoneAvailable {
-            // AirPods just connected
-            handleHeadphoneConnect()
-        } else if !isHeadphoneNowAvailable && wasHeadphoneAvailable {
-            // AirPods just disconnected
-            handleHeadphoneDisconnect()
+        // Update published state for UI to react
+        if isConnected != honestConnection {
+            DispatchQueue.main.async {
+                self.isConnected = honestConnection
+                // Force a UI refresh for components relying on this
+                self.objectWillChange.send()
+            }
         }
         
-        wasHeadphoneAvailable = isHeadphoneNowAvailable
+        // If we think we have headphones but data is stale, restart them
+        if headphoneManager.isDeviceMotionAvailable && !honestConnection {
+            // Attempt to keep alive
+            if !headphoneManager.isDeviceMotionActive {
+                startHeadphoneUpdates()
+            }
+        }
     }
     
     // MARK: - Start Updates
@@ -128,6 +145,7 @@ class MotionManager: ObservableObject {
                 }
                 return
             }
+            self.lastDataTimestamp = Date()
             self.processMotion(motion.attitude)
         }
     }

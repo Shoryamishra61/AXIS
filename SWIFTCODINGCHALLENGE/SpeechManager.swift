@@ -24,9 +24,9 @@ class SpeechManager: NSObject, ObservableObject {
     // MARK: - Voice Configuration
     private var preferredVoice: AVSpeechSynthesisVoice?
     
-    // Luxury Pacing Configuration - faster for a snappier feel
-    private let baseRate: Float = 0.52      // Faster than before for concise guidance
-    private let basePitch: Float = 0.95     // Slightly warmer tone
+    // Luxury Pacing Configuration - Slow and Deep
+    private let baseRate: Float = 0.42      // Slower for authoritative, calm guidance
+    private let basePitch: Float = 0.85     // Deeper, grounded tone
     private let baseVolume: Float = 1.0
     
     // MARK: - Initialization
@@ -82,13 +82,47 @@ class SpeechManager: NSObject, ObservableObject {
     
     // MARK: - Primary Speak Methods
     
-    /// Speak a simple string with luxury settings
+    /// Speak a simple string (Legacy/Fallback)
     func speak(text: String) {
+        // Redirect to coaching if it's long, otherwise standard
+        if text.count > 20 {
+            speakCoaching(text)
+        } else {
+            stop()
+            let utterance = AVSpeechUtterance(string: text)
+            configureUtterance(utterance)
+            synthesizer.speak(utterance)
+            isSpeaking = true
+        }
+    }
+    
+    /// EXPERIMENTAL: Smart Coaching with SSML
+    /// Wraps plain text in SSML tags for prosody and breaks
+    func speakCoaching(_ text: String) {
         stop()
-        let utterance = AVSpeechUtterance(string: text)
-        configureUtterance(utterance)
-        synthesizer.speak(utterance)
-        isSpeaking = true
+        
+        // 1. Sanitize XML special chars
+        let safeText = text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+        
+        // 2. Insert pauses at punctuation
+        let pacedText = safeText
+            .replacingOccurrences(of: ". ", with: ". <break time=\"600ms\"/> ")
+            .replacingOccurrences(of: ", ", with: ", <break time=\"300ms\"/> ")
+            .replacingOccurrences(of: "! ", with: "! <break time=\"500ms\"/> ")
+        
+        // 3. Wrap in prosody
+        let ssml = """
+        <speak>
+            <prosody rate="\(baseRate)" pitch="-10%" volume="90%">
+                \(pacedText)
+            </prosody>
+        </speak>
+        """
+        
+        speakSSML(ssml)
     }
     
     /// Speak using SSML for precise control
@@ -97,7 +131,8 @@ class SpeechManager: NSObject, ObservableObject {
         if let utterance = AVSpeechUtterance(ssmlRepresentation: ssmlString) {
             utterance.voice = preferredVoice
             // Note: rate/pitch are often overridden by SSML tags, but we set defaults just in case
-            utterance.rate = baseRate
+            utterance.rate = baseRate // Ensure base rate applies
+
             utterance.pitchMultiplier = basePitch
             utterance.volume = baseVolume
             
