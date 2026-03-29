@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSMotionUsageDescription</key>
+    <string>AXIS uses motion data to guide neck posture exercises in real time.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>AXIS optionally uses the front camera to estimate head orientation when motion sensors are unavailable.</string>
+    <key>NSHealthShareUsageDescription</key>
+    <string>AXIS reads mindful minutes to show completed reset sessions in context.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>AXIS writes completed reset sessions as mindful minutes so your posture practice appears in Health.</string>
+</dict>
+</plist>

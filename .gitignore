@@ -1,0 +1,17 @@
+# Build artifacts
+.build/
+*.o
+*.d
+
+# Xcode / Swift Package Manager derived data
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Homebrew / local env
+.env
