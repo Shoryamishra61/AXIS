@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="Assets/winner_badge.png" alt="Swift Student Challenge 2026 Winner" width="250" />
+  <img src="Assets/image.png" alt="Swift Student Challenge 2026 Winner" width="250" />
   <h1>AXIS</h1>
   <p><strong>Winner of the Apple Swift Student Challenge 2026 🏆</strong></p>
   <p><i>A privacy-first, intelligent posture coaching app powered by AirPods motion tracking.</i></p>
